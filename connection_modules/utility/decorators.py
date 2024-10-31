@@ -1,9 +1,9 @@
-'''' pydatabaseconnection/utils/decorators.py '''
-
+# pydatabaseconnection/utility/decorators.py
 from functools import wraps
 from typing import Any, Callable, Type, TypeVar
 import logging
 from time import time
+from ..exceptions import ConnectionError, ExecutionError
 
 T = TypeVar('T')
 
@@ -55,9 +55,11 @@ def transaction(func: Callable[..., T]) -> Callable[..., T]:
     def wrapper(self, *args: Any, **kwargs: Any) -> T:
         try:
             result = func(self, *args, **kwargs)
-            self._connection.commit()
+            if hasattr(self, '_connection'):
+                self._connection.commit()
             return result
         except Exception as e:
-            self._connection.rollback()
+            if hasattr(self, '_connection'):
+                self._connection.rollback()
             raise ExecutionError(f"Transaction failed: {str(e)}")
     return wrapper

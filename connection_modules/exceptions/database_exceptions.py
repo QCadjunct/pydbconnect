@@ -1,4 +1,5 @@
 # pydatabaseconnection/exceptions/database_exceptions.py
+"""Database exceptions module."""
 class DatabaseError(Exception):
     """Base exception for all database related errors."""
     pass

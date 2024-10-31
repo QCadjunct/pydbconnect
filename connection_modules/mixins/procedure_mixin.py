@@ -1,8 +1,10 @@
 ''' pydatabaseconnection/connection_modules/mixins/procedure_mixin.py '''
 
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+import pandas as pd
 from ...exceptions import ExecutionError
-from ...utils.decorators import log_operation, validate_connection, transaction
+from ...utility.decorators import log_operation, validate_connection, transaction
 
 class StoredProcedureMixin:
     """Mixin for stored procedure operations."""

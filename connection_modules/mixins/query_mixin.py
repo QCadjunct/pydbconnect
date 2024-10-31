@@ -3,7 +3,7 @@
 from typing import Any, Dict, Optional, Union, List
 import pandas as pd
 from ...exceptions import ExecutionError
-from ...utils.decorators import log_operation, validate_connection, transaction
+from ...utility.decorators import log_operation, validate_connection, transaction
 
 class QueryMixin:
     """Mixin for database query operations."""
