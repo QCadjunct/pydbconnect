@@ -3,7 +3,7 @@
 ## 1. Template Configurations
 
 ### 1.1 MSSQL Configuration
-```python
+ 
 MSSQL_CONFIG = {
     "MSSQL": {
         "DEFAULT_PARAMETERS": {
@@ -41,10 +41,10 @@ MSSQL_ENV = {
     "MSSQL_PASSWORD": "YourPassword",
     "MSSQL_DEFAULT_DATABASE": "master"
 }
-```
+ 
 
 ### 1.2 PostgreSQL Configuration
-```python
+ 
 POSTGRESQL_CONFIG = {
     "POSTGRESQL": {
         "DEFAULT_PARAMETERS": {
@@ -78,10 +78,10 @@ POSTGRESQL_ENV = {
     "POSTGRESQL_PASSWORD": "YourPassword",
     "POSTGRESQL_DEFAULT_DATABASE": "postgres"
 }
-```
+ 
 
 ### 1.3 SQLite Configuration
-```python
+ 
 SQLITE_CONFIG = {
     "SQLITE3": {
         "DEFAULT_PARAMETERS": {
@@ -102,12 +102,12 @@ SQLITE_CONFIG = {
         }
     }
 }
-```
+ 
 
 ## 2. Connection String Examples
 
 ### 2.1 Direct Connection Strings
-```python
+ 
 # MSSQL Direct Connection
 mssql_direct = (
     "DRIVER={ODBC Driver 17 for SQL Server};"
@@ -138,10 +138,10 @@ mysql_direct = (
     "PWD=YourPassword;"
     "CHARSET=utf8mb4;"
 )
-```
+ 
 
 ### 2.2 DSN Connection Strings
-```python
+ 
 # MSSQL DSN
 mssql_dsn = "DSN=MyMSSQLDSN;UID=sa;PWD=YourPassword;"
 
@@ -150,12 +150,12 @@ postgresql_dsn = "DSN=MyPostgreSQLDSN;UID=postgres;PWD=YourPassword;"
 
 # MySQL DSN
 mysql_dsn = "DSN=MyMySQLDSN;UID=root;PWD=YourPassword;"
-```
+ 
 
 ## 3. Environment Configuration
 
 ### 3.1 .env File Template
-```ini
+ ini
 # Database Credentials
 MSSQL_USERNAME=sa
 MSSQL_PASSWORD=YourPassword
@@ -177,10 +177,10 @@ DEFAULT_POOL_SIZE=5
 # Debug Settings
 DEBUG_MODE=False
 LOG_LEVEL=INFO
-```
+ 
 
 ### 3.2 Configuration Loading
-```python
+ 
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -208,12 +208,12 @@ def load_configuration():
             'debug': os.getenv('DEBUG_MODE', 'False').lower() == 'true'
         }
     }
-```
+ 
 
 ## 4. Usage Examples
 
 ### 4.1 Basic Configuration Usage
-```python
+ 
 # Direct connection with default configuration
 db = DatabaseConnection("MSSQL") \
     .with_credentials_from_env() \
@@ -233,10 +233,10 @@ db = DatabaseConnection("MYSQL", use_dsn=True) \
     .with_credentials_from_env() \
     .with_params(DSN_NAME="MyDSN") \
     .connect()
-```
+ 
 
 ### 4.2 Advanced Configuration Usage
-```python
+ 
 # Connection with timeout and pooling
 from contextlib import contextmanager
 
@@ -278,4 +278,4 @@ with get_db_connection(
     POOL_SIZE=10
 ) as db:
     results = db.query_to_dataframe("SELECT * FROM users")
-```
+ 

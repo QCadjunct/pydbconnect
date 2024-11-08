@@ -3,7 +3,7 @@
 ## 1. Basic Database Operations
 
 ### 1.1 MSSQL Implementation
-```python
+   
 # Basic MSSQL Query
 db = DatabaseConnection("MSSQL") \
     .with_credentials("sa", "password") \
@@ -51,10 +51,10 @@ with db.transaction():
         )
         VALUES (?, ?, ?, ?, ?)
     """, params=(order_id, 1, 18.00, 5, 0.0))
-```
+   
 
 ### 1.2 PostgreSQL Implementation
-```python
+   
 # Basic PostgreSQL Operations
 db = DatabaseConnection("POSTGRESQL") \
     .with_credentials("postgres", "password") \
@@ -99,10 +99,10 @@ def bulk_copy_example(db, df: pd.DataFrame, table: str):
             sep=','
         )
     raw_conn.commit()
-```
+   
 
 ### 1.3 SQLite Implementation
-```python
+   
 # SQLite with DataFrame Operations
 db = DatabaseConnection("SQLITE3") \
     .with_params(
@@ -148,12 +148,12 @@ results = db.execute_sql_to_panda_dataframe("""
     FROM metrics
     ORDER BY date
 """)
-```
+   
 
 ## 2. Advanced Implementation Examples
 
 ### 2.1 Real-time Data Analysis
-```python
+   
 # Real-time data processing with window functions
 def analyze_real_time_data(db: DatabaseConnection, window_size: int = 100):
     while True:
@@ -184,10 +184,10 @@ def analyze_real_time_data(db: DatabaseConnection, window_size: int = 100):
             process_anomalies(anomalies)
             
         time.sleep(60)  # Wait for next batch
-```
+   
 
 ### 2.2 Batch Processing with Progress
-```python
+   
 from tqdm import tqdm
 
 def process_large_dataset(
@@ -220,10 +220,10 @@ def process_large_dataset(
                 )
             
             pbar.update(len(batch))
-```
+   
 
 ### 2.3 Advanced Aggregation Pipeline
-```python
+   
 def run_analytics_pipeline(
     db: DatabaseConnection,
     start_date: str,
@@ -265,7 +265,7 @@ def run_analytics_pipeline(
         sheet_name='Results',
         index=True
     )
-```
+   
 
 Would you like me to add more specific examples or elaborate on any particular aspect?### 6.2 Common Validation Errors
 

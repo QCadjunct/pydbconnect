@@ -3,7 +3,7 @@
 ## 1. Core Classes
 
 ### 1.1 DatabaseConnection
-```python
+   
 class DatabaseConnection:
     """
     Main database connection class providing fluent interface for database operations.
@@ -66,10 +66,10 @@ class DatabaseConnection:
         Raises:
             DatabaseConnectionError: If invalid parameters provided
         """
-```
+   
 
 ### 1.2 DataFrame Operations
-```python
+   
 def execute_sql_to_panda_dataframe(
     self,
     sql_command: str,
@@ -111,10 +111,10 @@ def transform_dataframe(
     Raises:
         DataFrameOperationError: If transformation fails
     """
-```
+   
 
 ### 1.3 Transaction Management
-```python
+   
 @contextmanager
 def transaction(self):
     """
@@ -137,12 +137,12 @@ def commit(self) -> 'DatabaseConnection':
 
 def rollback(self) -> 'DatabaseConnection':
     """Rollback current transaction."""
-```
+   
 
 ## 2. Utility Functions
 
 ### 2.1 Validation Utilities
-```python
+   
 def validate_connection_params(params: Dict[str, Any], required_params: set) -> None:
     """
     Validate connection parameters.
@@ -171,10 +171,10 @@ def validate_credentials(
     Raises:
         ValidationError: If credentials invalid
     """
-```
+   
 
 ### 2.2 Export Utilities
-```python
+   
 def export_dataframe(
     self,
     format: str = 'csv',
@@ -195,11 +195,11 @@ def export_dataframe(
     Raises:
         DataFrameOperationError: If export fails
     """
-```
+   
 
 ## 3. Exception Hierarchy
 
-```python
+   
 class DatabaseError(Exception):
     """Base exception for all database-related errors."""
 
@@ -214,11 +214,11 @@ class ValidationError(DatabaseError):
 
 class DataFrameOperationError(DatabaseError):
     """DataFrame operation errors."""
-```
+   
 
 ## 4. Type Definitions
 
-```python
+   
 from typing import TypedDict, Optional
 
 class ConnectionConfig(TypedDict):
@@ -237,11 +237,11 @@ class Credentials(TypedDict):
     username: str
     password: str
     is_default: bool
-```
+   
 
 ## 5. Configuration Types
 
-```python
+   
 class DatabaseTemplate:
     """Database engine template configuration."""
     name: str
@@ -251,7 +251,7 @@ class DatabaseTemplate:
     parameter_placeholder: str
     default_config: ConnectionConfig
     connection_format: Dict[str, str]
-```### 6.2 Common Validation Errors
+   ### 6.2 Common Validation Errors
 
 - Missing required parameters
 - Invalid port numbers

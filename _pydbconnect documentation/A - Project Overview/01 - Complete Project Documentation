@@ -41,16 +41,17 @@ The validation system provides comprehensive validation for database connections
 ## 1. ValidationRules
 
 ### 1.1 Constants and Rules
-```python
+
 PORT_RANGE = (1, 65535)
 MAX_USERNAME_LENGTH = 128
 MAX_PASSWORD_LENGTH = 256
 VALID_HOSTNAME_REGEX = r'^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
 RESERVED_WORDS = {'select', 'drop', 'delete', 'update', 'insert', 'alter', 'truncate'}
-```
+
+
 
 ### 1.2 Methods
-```python
+
 # Validate port number
 is_valid_port(port: int) -> bool
 
@@ -62,12 +63,12 @@ is_valid_ip(ip: str) -> bool
 
 # Validate database name
 is_valid_database_name(name: str) -> bool
-```
+
 
 ## 2. Connection Validation
 
 ### 2.1 Parameter Validation
-```python
+
 # Validate connection parameters
 ConnectionValidator.validate_connection_params(
     params: Dict[str, Any],
@@ -80,10 +81,9 @@ validator.validate_connection_params({
     'PORT_NUMBER': 1433,
     'DATABASE_NAME': 'mydb'
 }, {'SERVER', 'PORT_NUMBER'})
-```
 
 ### 2.2 Credential Validation
-```python
+
 # Validate credentials
 ConnectionValidator.validate_credentials(
     username: Optional[str],
@@ -93,12 +93,11 @@ ConnectionValidator.validate_credentials(
 
 # Example usage:
 validator.validate_credentials('user', 'pass', required=True)
-```
 
 ## 3. Query Validation
 
 ### 3.1 SQL Query Validation
-```python
+
 # Validate SQL query
 QueryValidator.validate_query(query: str)
 
@@ -107,10 +106,10 @@ validator.validate_query("""
     SELECT * FROM users 
     WHERE username = ? AND status = ?
 """)
-```
+
 
 ### 3.2 Parameter Validation
-```python
+
 # Validate query parameters
 QueryValidator.validate_parameters(
     params: Union[tuple, list, dict, None],
@@ -122,12 +121,11 @@ validator.validate_parameters(
     ('user1', 'active'),
     expected_count=2
 )
-```
 
 ## 4. DataFrame Validation
 
 ### 4.1 DataFrame Operation Validation
-```python
+
 # Validate DataFrame for operations
 DataFrameValidator.validate_dataframe_operation(
     df: Any,
@@ -141,10 +139,9 @@ validator.validate_dataframe_operation(
     required_columns=['id', 'value'],
     min_rows=1
 )
-```
 
 ### 4.2 Transform Operation Validation
-```python
+
 # Validate transformation operation
 DataFrameValidator.validate_transform_operation(
     transform: Union[str, callable],
@@ -156,12 +153,11 @@ validator.validate_transform_operation(
     'standardize',
     {'standardize', 'normalize', 'fillna'}
 )
-```
 
 ## 5. Usage Examples
 
 ### 5.1 Connection Validation Example
-```python
+
 try:
     # Validate connection parameters
     ConnectionValidator.validate_connection_params({
@@ -177,10 +173,10 @@ try:
     )
 except ValidationError as e:
     print(f"Validation failed: {e}")
-```
+
 
 ### 5.2 Query Validation Example
-```python
+
 try:
     # Validate query
     query = "SELECT * FROM users WHERE status = ?"
@@ -191,12 +187,9 @@ try:
     
 except ValidationError as e:
     print(f"Query validation failed: {e}")
-```
 
 ### 5.3 DataFrame Validation Example
-```python
-try:
-    # Validate DataFrame
+# Validate DataFrame
     DataFrameValidator.validate_dataframe_operation(
         df,
         required_columns=['id', 'name', 'value'],
@@ -211,14 +204,13 @@ try:
     
 except ValidationError as e:
     print(f"DataFrame validation failed: {e}")
-```
 
 ## 6. Error Handling
 
 ### 6.1 ValidationError
 All validation methods raise `ValidationError` with descriptive messages:
 
-```python
+
 class ValidationError(Exception):
     """Base exception for validation errors"""
     pass
@@ -229,7 +221,6 @@ try:
 except ValidationError as e:
     logger.error(f"Validation failed: {e}")
     # Handle error appropriately
-```
 
 ### 6.2 Common Validation Errors
 
@@ -277,7 +268,7 @@ except ValidationError as e:
 ####1. **Template System **
 
 # Priority 1.1: Template Base Class
-```python
+
 class DatabaseTemplate:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -288,20 +279,19 @@ class TemplateManager:
     def __init__(self):
         self._templates = {}
         self._load_default_templates()
-```
 
 2. **Connection Management**
-   ```python
+
    # Priority 1.3: Connection Base
    class DatabaseConnection:
        def __init__(self, engine_type: str):
            self.template = TemplateManager().get_template(engine_type)
            self._connection = None
-   ```
+
 
 ### Phase 2: Database Operations
 1. **Query Execution**
-   ```python
+
    # Priority 2.1: Query Methods
    def execute_sql_to_panda_dataframe(
        self, 
@@ -310,10 +300,10 @@ class TemplateManager:
        **kwargs: Any
    ) -> Union['DatabaseConnection', pd.DataFrame]:
        pass
-   ```
+
 
 2. **Transaction Management**
-   ```python
+
    # Priority 2.2: Transaction Support
    @contextmanager
    def transaction(self):
@@ -324,11 +314,10 @@ class TemplateManager:
        except Exception:
            self.rollback()
            raise
-   ```
 
 ### Phase 3: DataFrame Operations
 1. **Data Transformations**
-   ```python
+
    # Priority 3.1: Transform Methods
    def transform_dataframe(
        self,
@@ -336,10 +325,10 @@ class TemplateManager:
        columns: Optional[List[str]] = None
    ) -> 'DatabaseConnection':
        pass
-   ```
+
 
 2. **Export Capabilities**
-   ```python
+
    # Priority 3.2: Export Methods
    def export_dataframe(
        self,
@@ -347,12 +336,12 @@ class TemplateManager:
        output: Optional[str] = None
    ) -> Union[str, bytes, 'DatabaseConnection']:
        pass
-   ```
+
 
 ## 3. Example Configuration Files
 
 ### 3.1 Database Templates
-```python
+
 # config/templates/mssql.py
 MSSQL_CONFIG = {
     "DEFAULT_PARAMETERS": {
@@ -394,10 +383,10 @@ POSTGRESQL_CONFIG = {
         "IS_USERNAME_AND_PASSWORD_REQUIRED": True
     }
 }
-```
+
 
 ### 3.2 Application Settings
-```python
+
 # config/settings.py
 from typing import Dict, Any
 
@@ -412,12 +401,11 @@ class Settings:
     @classmethod
     def get_config(cls) -> Dict[str, Any]:
         return cls.DEFAULT_CONFIG.copy()
-```
 
 ## 4. Testing Guidelines
 
 ### 4.1 Test Structure
-```python
+
 # tests/conftest.py
 import pytest
 from typing import Generator
@@ -448,7 +436,6 @@ def test_dataframe_operations(db_connection):
         .get_panda_dataframe()
     
     assert not result.empty
-```
 
 ### 4.2 Testing Priorities
 
@@ -470,7 +457,7 @@ def test_dataframe_operations(db_connection):
    - Connection pooling
 
 ### 4.3 Test Configuration
-```python
+
 # tests/test_config.py
 TEST_CONFIG = {
     "databases": {
@@ -494,10 +481,9 @@ TEST_CONFIG = {
         "batch_size": 100
     }
 }
-```
 
 ### 4.4 Mock Objects
-```python
+
 # tests/mocks.py
 from unittest.mock import Mock
 from typing import Dict, Any
@@ -514,12 +500,11 @@ class MockConnection:
 
     def close(self):
         self.connected = False
-```
 
 ## 5. Documentation Templates
 
 ### 5.1 Function Documentation
-```python
+
 def method_template(param1: type1, param2: type2) -> return_type:
     """
     Brief description of the method.
@@ -539,10 +524,9 @@ def method_template(param1: type1, param2: type2) -> return_type:
         expected_result
     """
     pass
-```
 
 ### 5.2 Class Documentation
-```python
+
 class ClassTemplate:
     """
     Brief description of the class.
@@ -561,7 +545,7 @@ class ClassTemplate:
         >>> obj.method1()
     """
     pass
-```
+
 
 Would you like me to:
 1. Add more specific test cases?

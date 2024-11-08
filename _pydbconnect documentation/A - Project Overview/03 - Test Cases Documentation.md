@@ -44,7 +44,7 @@
 6. Log validation failures for debugging
 7. Use type hints for better code clarity
 8. Keep validation rules updated with security best practices
-```python
+  
 # tests/test_connection.py
 import pytest
 from pydatabaseconnection import DatabaseConnection
@@ -115,12 +115,12 @@ class TestDatabaseConnection:
         .get_panda_dataframe()
         
         assert all(result['value_sum'] > 100)
-```
+  
 
 ## 2. Integration Tests
 
 ### 2.1 Transaction Tests
-```python
+  
 class TestTransactions:
     def test_successful_transaction(self, db_connection):
         """Test successful transaction completion"""
@@ -153,10 +153,10 @@ class TestTransactions:
             params=(42,)
         )
         assert len(result) == 0
-```
+  
 
 ### 2.2 Bulk Operation Tests
-```python
+  
 class TestBulkOperations:
     def test_bulk_insert(self, db_connection, large_dataframe):
         """Test bulk insert operation"""
@@ -181,12 +181,12 @@ class TestBulkOperations:
             "UPDATE test_table SET value = ? WHERE id = ?",
             [(row['value'], row['id']) for _, row in large_dataframe.iterrows()]
         )
-```
+  
 
 ## 3. Performance Tests
 
 ### 3.1 Load Testing
-```python
+  
 class TestPerformance:
     @pytest.mark.slow
     def test_large_dataset_handling(self, db_connection):
@@ -222,12 +222,12 @@ class TestPerformance:
             results = list(executor.map(lambda _: connect_and_query(), range(10)))
             
         assert all(r == 100 for r in results)
-```
+  
 
 ## 4. Test Fixtures and Utilities
 
 ### 4.1 Common Fixtures
-```python
+  
 # tests/conftest.py
 import pytest
 import pandas as pd
@@ -257,10 +257,10 @@ def test_database():
     # Database setup code
     yield
     # Database cleanup code
-```
+  
 
 ### 4.2 Mock Objects
-```python
+  
 # tests/mocks.py
 from unittest.mock import Mock, MagicMock
 
@@ -285,7 +285,7 @@ class MockCursor:
 
     def execute(self, query, params=None):
         pass
-```### 6.2 Common Validation Errors
+  ### 6.2 Common Validation Errors
 
 - Missing required parameters
 - Invalid port numbers
