@@ -9,10 +9,10 @@ with open('README.md', 'r', encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name="pydatabaseconnection",
+    name="pydbconnect",
     version="0.1.0",
     author="Peter Heller",
-    author_email="your.email@example.com",
+    author_email="pheller@qc.cuny.edu,
     description="A flexible database connection management library",
     long_description=long_description,
     long_description_content_type="text/markdown",

@@ -20,7 +20,7 @@ This will create two distributions in the `dist` directory:
 
 ## Project Structure
 ```
-pydatabaseconnection/
+pydbconnect/
 ├── LICENSE
 ├── README.md
 ├── MANIFEST.in
