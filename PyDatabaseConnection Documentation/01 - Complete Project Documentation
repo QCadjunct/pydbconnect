@@ -2,57 +2,26 @@
 
 ## 1. Project Structure
 ## Project Structure
-```
-PyDbConnect/
-├── README.md
-├── requirements.txt
-├── setup.py
-├── pydbconnect/
-│   ├── __init__.py
-│   ├── core/
-│   │   ├── __init__.py
-│   │   ├── connection.py            # Main database connection class
-│   │   └── template_manager.py      # Template management system
-│   │
-│   ├── templates/
-│   │   ├── __init__.py
-│   │   └── database_templates.py    # All database engine templates
-│   │
-│   ├── types/
-│   │   ├── __init__.py
-│   │   ├── exceptions.py           # Custom exception classes
-│   │   └── connection_types.py     # Type definitions and protocols
-│   │
-│   └── utils/
-│       ├── __init__.py
-│       ├── decorators.py           # Parameter handling decorators
-│       └── validation.py           # Parameter validation utilities
-│
-└── tests/
-    ├── __init__.py
-    ├── conftest.py
-    ├── test_connection.py
-    ├── test_templates.py
-    └── test_utils.py
-```
+
 
 ## 2. Implementation Priorities
 
 ### Phase 1: Core Foundation
-1. **Template System**
-   ```python
-   # Priority 1.1: Template Base Class
-   class DatabaseTemplate:
-       def __init__(self, config: Dict[str, Any]):
-           self.config = config
-           self._validate_config()
+####1. **Template System **
 
-   # Priority 1.2: Template Manager
-   class TemplateManager:
-       def __init__(self):
-           self._templates = {}
-           self._load_default_templates()
-   ```
+# Priority 1.1: Template Base Class
+```python
+class DatabaseTemplate:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self._validate_config()
+
+# Priority 1.2: Template Manager
+class TemplateManager:
+    def __init__(self):
+        self._templates = {}
+        self._load_default_templates()
+```
 
 2. **Connection Management**
    ```python
