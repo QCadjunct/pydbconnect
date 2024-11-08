@@ -6,7 +6,7 @@ The PyDatabaseConnection package provides a template-driven approach to database
 ## Package Structure
 
 ```
-pydatabaseconnection/
+pydbconnect/
 ├── __init__.py                 # Main package initialization
 ├── core/
 │   ├── __init__.py            # Core module initialization
