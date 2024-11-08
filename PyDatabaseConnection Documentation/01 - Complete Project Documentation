@@ -1,38 +1,39 @@
 # PyDatabaseConnection - Complete Project Documentation
 
 ## 1. Project Structure
+## Project Structure
 ```
-pydatabaseconnection/
-├── __init__.py
-├── core/
+PyDbConnect/
+├── README.md
+├── requirements.txt
+├── setup.py
+├── pydbconnect/
 │   ├── __init__.py
-│   ├── connection.py          # Database connection handling
-│   ├── template_manager.py    # Template management
-│   └── dataframe_ops.py      # DataFrame operations
-├── config/
-│   ├── __init__.py
-│   ├── templates/            # Database templates
+│   ├── core/
 │   │   ├── __init__.py
-│   │   ├── mssql.py
-│   │   ├── postgresql.py
-│   │   ├── mysql.py
-│   │   ├── sqlite.py
-│   │   └── duckdb.py
-│   └── settings.py           # Global settings
-├── types/
-│   ├── __init__.py
-│   ├── connection_types.py   # Type definitions
-│   └── exceptions.py         # Custom exceptions
-├── utils/
-│   ├── __init__.py
-│   ├── validation.py         # Validation utilities
-│   └── decorators.py         # Custom decorators
+│   │   ├── connection.py            # Main database connection class
+│   │   └── template_manager.py      # Template management system
+│   │
+│   ├── templates/
+│   │   ├── __init__.py
+│   │   └── database_templates.py    # All database engine templates
+│   │
+│   ├── types/
+│   │   ├── __init__.py
+│   │   ├── exceptions.py           # Custom exception classes
+│   │   └── connection_types.py     # Type definitions and protocols
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── decorators.py           # Parameter handling decorators
+│       └── validation.py           # Parameter validation utilities
+│
 └── tests/
     ├── __init__.py
-    ├── conftest.py           # Test configurations
+    ├── conftest.py
     ├── test_connection.py
     ├── test_templates.py
-    └── test_dataframe_ops.py
+    └── test_utils.py
 ```
 
 ## 2. Implementation Priorities
