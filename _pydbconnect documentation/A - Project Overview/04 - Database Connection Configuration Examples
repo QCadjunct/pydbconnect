@@ -241,7 +241,27 @@ db = DatabaseConnection("MYSQL", use_dsn=True) \
 from contextlib import contextmanager
 
 @contextmanager
-def get_db_connection(engine_type: str, **kwargs):
+def get_db_connection(engine_type: str, **kwargs):### 6.2 Common Validation Errors
+
+- Missing required parameters
+- Invalid port numbers
+- Invalid hostnames/IPs
+- Invalid database names
+- Invalid credentials
+- Dangerous SQL patterns
+- Parameter count mismatches
+- Invalid DataFrame operations
+
+## 7. Best Practices
+
+1. Always validate connection parameters before attempting connection
+2. Use parameterized queries instead of string concatenation
+3. Validate credentials when authentication is required
+4. Validate DataFrame operations before processing
+5. Handle validation errors appropriately
+6. Log validation failures for debugging
+7. Use type hints for better code clarity
+8. Keep validation rules updated with security best practices
     db = DatabaseConnection(engine_type) \
         .with_credentials_from_env() \
         .with_params(**kwargs) \
