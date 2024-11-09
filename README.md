@@ -173,4 +173,4 @@ This project is in beta. While it's stable enough for production use, APIs may c
 
 ---
 
-Made with ❤️ by Me, Marko and Deepak.
+Made with ❤️ by Marko, Deepak and Me.
