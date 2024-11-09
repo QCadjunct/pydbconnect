@@ -5,6 +5,7 @@ This module provides core utilities for the pydbconnect package, focusing on par
 ## Decorators
 
 ### `preload_default_parameters`
+
 Manages parameter merging for database connections, ensuring proper default and custom parameter handling.
 
 ```python
@@ -21,11 +22,13 @@ class DatabaseConnection:
 ```
 
 **Error Handling:**
+
 - Validates callable status of preloaded_params_method
 - Ensures return value is dictionary
 - Validates required parameters are present
 
 ### `ensure_connected`
+
 Verifies database connection exists before executing database operations.
 
 ```python
@@ -39,11 +42,13 @@ class DatabaseConnection:
 ```
 
 **Error Handling:**
+
 - Raises ConnectionError if database not connected
 
 ## Utility Functions
 
 ### `validate_connection_params`
+
 Validates presence of required connection parameters.
 
 ```python
@@ -56,6 +61,7 @@ validate_connection_params(params, required)  # Raises ValueError
 ```
 
 **Error Handling:**
+
 - Raises ValueError if required parameters missing
 
 ## Best Practices

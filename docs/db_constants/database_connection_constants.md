@@ -1,6 +1,7 @@
 # Database Connection Constants Documentation
 
 ## Table of Contents
+
 1. [Overview](#overview)
 2. [Helper Functions](#helper-functions)
 3. [Database Engine Configurations](#database-engine-configurations)
@@ -13,6 +14,7 @@
 The database_connection_constants module provides configuration templates and connection management for multiple database engines. Each engine's configuration follows a consistent structure while accommodating engine-specific requirements.
 
 ### Key Features
+
 - Dynamic module imports
 - Secure credential handling
 - DSN and direct connection support
@@ -56,6 +58,7 @@ print("Secure parameters:", params)
 ## Database Engine Configurations
 
 ### Structure Overview
+
 Each database engine configuration follows this structure:
 
 ```python
@@ -236,5 +239,3 @@ class MultiDatabaseManager:
             cursor.execute(query)
             return cursor.fetchall()
 ```
-
-Would you like me to expand on any particular section or add more specific examples?
