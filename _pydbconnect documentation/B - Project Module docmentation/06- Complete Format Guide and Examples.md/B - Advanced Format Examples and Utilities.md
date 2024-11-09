@@ -152,7 +152,7 @@ db.transfer_table(
 
 ### New Utility Files Structure
  plaintext
-pydatabaseconnection/utils/
+pydbconnect/utils/
 ├── __init__.py
 ├── base_utils.py
 ├── format_utils/
@@ -173,7 +173,7 @@ pydatabaseconnection/utils/
 Let's implement some of these utility files:
 
  
-# pydatabaseconnection/utils/format_utils/parquet_utils.py
+# pydbconnect/utils/format_utils/parquet_utils.py
 from typing import Dict, Any, Optional, List
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -203,7 +203,7 @@ class ParquetUtils:
         """Suggest optimal partitioning columns"""
         pass
 
-# pydatabaseconnection/utils/monitoring/metrics.py
+# pydbconnect/utils/monitoring/metrics.py
 from typing import Dict, Any
 from dataclasses import dataclass
 import time
@@ -229,7 +229,7 @@ class TransferMetrics:
         """Get current statistics"""
         pass
 
-# pydatabaseconnection/utils/optimization/memory.py
+# pydbconnect/utils/optimization/memory.py
 from typing import Dict, Any, Optional
 import psutil
 
@@ -255,7 +255,7 @@ class MemoryOptimizer:
         """Estimate memory requirements for operation"""
         pass
 
-# pydatabaseconnection/utils/optimization/performance.py
+# pydbconnect/utils/optimization/performance.py
 from typing import Dict, Any, Optional
 import time
 import threading
@@ -286,7 +286,7 @@ class PerformanceOptimizer:
 
  
 # Example 1: Using ParquetUtils
-from pydatabaseconnection.utils.format_utils.parquet_utils import ParquetUtils
+from pydbconnect.utils.format_utils.parquet_utils import ParquetUtils
 
 # Optimize schema for large table
 parquet_utils = ParquetUtils()
@@ -307,7 +307,7 @@ partition_cols = parquet_utils.suggest_partitioning(
 )
 
 # Example 2: Using MemoryOptimizer
-from pydatabaseconnection.utils.optimization.memory import MemoryOptimizer
+from pydbconnect.utils.optimization.memory import MemoryOptimizer
 
 optimizer = MemoryOptimizer(safety_factor=0.8)
 
@@ -318,7 +318,7 @@ batch_size = optimizer.suggest_batch_size(
 )
 
 # Example 3: Using Performance Monitoring
-from pydatabaseconnection.utils.monitoring.metrics import TransferMetrics
+from pydbconnect.utils.monitoring.metrics import TransferMetrics
 
 metrics = TransferMetrics(start_time=time.time())
 
