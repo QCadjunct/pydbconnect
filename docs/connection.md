@@ -80,8 +80,11 @@ class TargetDatabaseConnectionStringOption(Enum):
     DefaultFormatAndChangeUserPwd = 2     # Use default string, prompt for credentials
     CustomizeFormatAndDefaultUserPwd = 3  # Custom string, default credentials
     CustomizeFormatAndChangeUserPwd = 4   # Custom string and credentials
+    # DSN connection strings
     Default_DSN_AndDefaultUserPwd = 5     # Use DSN with default credentials
     Default_DSN_AndChangeUserPwd = 6      # Use DSN, prompt for credentials
+    Customize_DSN_AndDefaultUserPwd = 7   # Use DSN, default credentials
+    Customize_DSN_AndChangeUserPwd = 8    # Use DSNCustom string and credentials
 ```
 
 ## Connection Management
