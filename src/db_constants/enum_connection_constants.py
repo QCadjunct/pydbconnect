@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional,Dict, Any
 
 class TargetDatabaseEngine(Enum):
     """Database engines supported by pydbconnect."""
