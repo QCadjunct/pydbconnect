@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pydatabaseconnection"
+name = "pydbconnect"
 version = "0.2.0"
 authors = [
     { name = "Peter Heller", email = "your.email@example.com" }
@@ -97,12 +97,12 @@ monitoring = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/pydatabaseconnection"
-"Bug Tracker" = "https://github.com/yourusername/pydatabaseconnection/issues"
-"Documentation" = "https://pydatabaseconnection.readthedocs.io/"
+"Homepage" = "https://github.com/yourusername/pydbconnect"
+"Bug Tracker" = "https://github.com/yourusername/pydbconnect/issues"
+"Documentation" = "https://pydbconnect.readthedocs.io/"
 
 [tool.setuptools]
-packages = ["pydatabaseconnection"]
+packages = ["pydbconnect"]
 
 [tool.black]
 line-length = 88
@@ -120,6 +120,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 minversion = "6.0"
-addopts = "-ra -q --cov=pydatabaseconnection"
+addopts = "-ra -q --cov=pydbconnect"
 testpaths = ["tests"]
