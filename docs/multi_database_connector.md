@@ -1,4 +1,4 @@
-# Multi-Database Connector Documentation 
+# Multi-Database Connector Documentation
 
 ## Table of Contents
 1. [Overview](#overview)
