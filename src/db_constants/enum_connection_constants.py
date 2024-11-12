@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Dict, Any, Type
 from abc import ABC, abstractmethod
+import importlib
 
 class TargetDatabaseEngine(Enum):
     """Database engines supported by pydbconnect."""
@@ -11,29 +12,61 @@ class TargetDatabaseEngine(Enum):
     DUCKDB = "DUCKDB"
     PSYCOPG2 = "PSYCOPG2"
 
+    def __init__(self, value: str):
+        """Initialize enum with target database engine name."""
+        
+        # Initialize target_database_engine_name in __init__
+        # Use target_database_engine_name consistently across all methods
+        # Maintain the enum's value through _value_    
+        
+        self._value_ = value
+        self.target_database_engine_name = self.name
+
+    @property
+    def target_database_engine_name(self) -> str:
+        """Get the name of the target database engine."""
+        return self.name
+
     @property
     def requires_authentication(self) -> bool:
-        """Check if engine requires username/password authentication."""
-        return self in (self.MSSQL, self.MYSQL, self.POSTGRESQL, self.PSYCOPG2)
-    
+        """
+        Check if engine requires username/password authentication.
+        Gets value from engine configuration.
+        """
+        from . import templates
+        engine_config = getattr(templates, self.target_database_engine_name)
+        return engine_config.get('REQUIRES_CREDENTIALS', False)
+
     @property
     def supports_dsn(self) -> bool:
-        """Check if engine supports DSN connections."""
-        return self in (self.MSSQL, self.MYSQL, self.POSTGRESQL)
-    
+        """
+        Check if engine supports DSN connections.
+        Gets value from engine configuration.
+        """
+        from . import templates
+        engine_config = getattr(templates, self.target_database_engine_name)
+        return engine_config.get('FORMAT_CONNECTION_STRING', {}).get('IS_DSN_NAME_SUPPORTED', False)
+
     @property
     def import_module(self) -> str:
-        """Get the Python module name required for this engine."""
-        module_map = {
-            self.MSSQL: "pyodbc",
-            self.MYSQL: "pyodbc",
-            self.POSTGRESQL: "pyodbc",
-            self.SQLITE3: "pyodbc",
-            self.DUCKDB: "duckdb",
-            self.PSYCOPG2: "psycopg2"
-        }
-        return module_map[self]
+        """
+        Get the Python module name required for this engine.
+        Gets value from engine configuration.
+        """
+        from . import templates
+        engine_config = getattr(templates, self.target_database_engine_name)
+        return engine_config.get('CRUDBASIC', {}).get('IMPORT', '')
 
+    def load_engine_config(self) -> Dict[str, Any]:
+        """Load complete engine configuration."""
+        from . import templates
+        return getattr(templates, self.target_database_engine_name)
+
+    def get_placeholder(self) -> str:
+        """Get SQL parameter placeholder for this engine."""
+        engine_config = self.load_engine_config()
+        return engine_config.get('CRUDBASIC', {}).get('PARAMETER_PLACEHOLDER', '?')
+        
     def validate_connection_option(self, option: 'TargetDatabaseConnectionStringOption') -> bool:
         """
         Validate if the connection option is compatible with this engine.
