@@ -17,6 +17,9 @@ Key Features:
 - 🎯 Type safety
 - 📦 Modular design
 
+[Table of Contents](#Table-of-Contents)
+
+
 ### Engine Configuration Template
 ```python
 ENGINE_CONFIG = {
