@@ -1,6 +1,7 @@
 # 🔌 Database Connection Constants Documentation
 
 ## 📑 Table of Contents
+
 1. [Overview](#overview) [↩️](#table-of-contents)
 2. [Helper Functions](#helper-functions) [↩️](#table-of-contents)
 3. [Engine Configurations](#engine-configurations) [↩️](#table-of-contents)
@@ -20,6 +21,7 @@ The `database_connection_constants.py` module defines configurations and connect
 ## 🛠️ Helper Functions
 
 ### Module Import
+
 ```python
 def get_db_target_engine_module(module_name: str) -> Any:
     """
@@ -41,6 +43,7 @@ def get_db_target_engine_module(module_name: str) -> Any:
 ```
 
 ### Parameter Loading
+
 ```python
 def load_default_parameter_keys_dict(target_database_engine: str, d: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -60,7 +63,7 @@ def load_default_parameter_keys_dict(target_database_engine: str, d: Dict[str, A
     }
 ```
 
-[↩️ Back to Table of Contents](#table-of-contents)
+[↩️ Back to Table of Contents](#📑-table-of-contents)
 
 ## 🎨 Engine Configurations
 
@@ -101,6 +104,7 @@ ENGINE = {
 ## 🔧 Engine-Specific Examples
 
 ### MSSQL Configuration
+
 ```python
 MSSQL = {
     "MSSQL": {
@@ -132,6 +136,7 @@ MSSQL = {
 ```
 
 ### PostgreSQL Configuration
+
 ```python
 POSTGRESQL = {
     "POSTGRESQL": {
@@ -167,6 +172,7 @@ POSTGRESQL = {
 ## 📋 Usage Patterns
 
 ### Basic Connection
+
 ```python
 # Load engine module
 module_name = POSTGRESQL["POSTGRESQL"]["CRUDBASIC"]["IMPORT"]
@@ -190,6 +196,7 @@ conn = db_module.connect(conn_str)
 ```
 
 ### DSN Connection
+
 ```python
 def connect_with_dsn(engine_config: dict, dsn_name: str):
     """Connect using DSN if supported."""
@@ -230,6 +237,7 @@ def connect_with_dsn(engine_config: dict, dsn_name: str):
 # 🔌 Database Connection Constants
 
 ## 📚 Table of Contents
+
 1. [Core Structure](#core-structure) [↩️](#table-of-contents)
 2. [Engine Configurations](#engine-configurations) [↩️](#table-of-contents)
 3. [Parameter Reference](#parameter-reference) [↩️](#table-of-contents)
@@ -270,6 +278,7 @@ ENGINE_NAME = {
 ## 🔧 Engine Configurations
 
 ### PostgreSQL (psycopg2)
+
 ```python
 PSYCOPG2 = {
     "PSYCOPG2": {
@@ -298,6 +307,7 @@ PSYCOPG2 = {
 ```
 
 ### MSSQL
+
 ```python
 MSSQL = {
     "MSSQL": {
@@ -328,6 +338,7 @@ MSSQL = {
 ```
 
 ### SQLite3
+
 ```python
 SQLITE3 = {
     "SQLITE3": {
@@ -354,6 +365,7 @@ SQLITE3 = {
 ## 📝 Parameter Reference
 
 ### Connection Parameters
+
 ```python
 class ConnectionParameters:
     """Common connection parameters across engines."""
@@ -401,6 +413,7 @@ def get_parameter_info(engine_type: TargetDatabaseEngine) -> Dict[str, str]:
 ## 🔗 Connection Strings
 
 ### Connection String Formatting
+
 ```python
 def build_connection_string(
     engine_type: TargetDatabaseEngine,
@@ -454,6 +467,7 @@ conn_str = build_connection_string(
 ## ⚠️ Error Handling
 
 ### Error Types
+
 ```python
 class DatabaseError(Exception):
     """Base exception for database errors."""
@@ -473,6 +487,7 @@ class DriverError(DatabaseError):
 ```
 
 ### Error Handling Patterns
+
 ```python
 def safe_connect(
     engine_type: TargetDatabaseEngine,
@@ -518,4 +533,3 @@ def safe_connect(
 ```
 
 [↩️ Back to Table of Contents](#table-of-contents)
-

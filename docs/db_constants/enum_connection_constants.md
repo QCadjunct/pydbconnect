@@ -24,7 +24,8 @@ if engine.supports_dsn:
 module_name = engine.import_module
 ```
 
-### Properties
+### Engine Properties
+
 - `requires_authentication`: Whether engine needs username/password
 - `supports_dsn`: Whether engine supports DSN connections
 - `import_module`: Required Python module name
@@ -46,7 +47,8 @@ else:
     # Handle incompatibility
 ```
 
-### Properties
+### Properties if DSN, Changes Credentials, and Uses Custom Format
+
 - `uses_dsn`: Whether option uses DSN connection
 - `changes_credentials`: Whether option requires credential changes
 - `uses_custom_format`: Whether option uses custom connection string format
@@ -82,6 +84,7 @@ db = DatabaseConnection(engine, option)
 ```
 
 ## Notes
+
 - Always validate connection options against engine before use
 - Handle InvalidConnectionOptionError for incompatible combinations
 - Check authentication and DSN requirements before connecting
