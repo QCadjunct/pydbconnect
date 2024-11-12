@@ -1,11 +1,12 @@
 # Multi-Database Connector Documentation
 
 ## Table of Contents
+
 1. [Overview](#overview)
 2. [Features](#features)
-3. [Installation](#installation)
-4. [Basic Usage](#basic-usage)
-5. [Advanced Features](#advanced-features)
+3. [Installation](#installation) 
+4. [Basic Usage](#basic-usage) 
+5. [Advanced Features](#advanced-features) 
 6. [Database-Specific Configurations](#database-specific-configurations)
 7. [Best Practices](#best-practices)
 8. [Examples](#examples)
@@ -21,6 +22,7 @@ The Multi-Database Connector provides a unified interface for managing multiple 
 ## Features
 
 ### Multi-Database Support
+
 ```python
 # Attach multiple databases
 connector = MultiDatabaseConnector()
@@ -140,6 +142,7 @@ connector.executemany(
 ## Database-Specific Configurations
 
 ### MSSQL
+
 ```python
 # MSSQL configuration
 mssql_config = {
@@ -158,6 +161,7 @@ connector.attach(
 ```
 
 ### MySQL
+
 ```python
 # MySQL configuration
 mysql_config = {
@@ -180,6 +184,7 @@ connector.attach(
 ## Best Practices
 
 ### 1. Connection Management
+
 ```python
 # Use context managers for automatic cleanup
 with MultiDatabaseConnector() as connector:
@@ -189,6 +194,7 @@ with MultiDatabaseConnector() as connector:
 ```
 
 ### 2. Batch Processing
+
 ```python
 def process_in_batches(connector, query, batch_size=1000):
     offset = 0
@@ -205,6 +211,7 @@ for batch in process_in_batches(connector, "SELECT * FROM large_table"):
 ```
 
 ### 3. Error Handling
+
 ```python
 def safe_execute(connector, database, query):
     try:
@@ -222,6 +229,7 @@ def safe_execute(connector, database, query):
 ## Performance Optimization
 
 ### 1. Connection Pooling
+
 ```python
 class PooledMultiDatabaseConnector(MultiDatabaseConnector):
     def __init__(self, pool_size=5):
@@ -239,6 +247,7 @@ class PooledMultiDatabaseConnector(MultiDatabaseConnector):
 ```
 
 ### 2. Query Optimization
+
 ```python
 def optimize_query(connector, query):
     """Analyze and optimize query execution plan."""
@@ -262,6 +271,7 @@ def optimize_query(connector, query):
 ### Common Issues and Solutions
 
 1. **Connection Failures**
+
 ```python
 try:
     connector.attach(connection_string, "db_name", "type")
@@ -274,7 +284,8 @@ except ConnectionError as e:
         print("Check network connectivity and firewall settings")
 ```
 
-2. **Transaction Deadlocks**
+1. **Transaction Deadlocks**
+
 ```python
 def retry_on_deadlock(max_retries=3):
     def decorator(func):
@@ -294,6 +305,7 @@ def retry_on_deadlock(max_retries=3):
 ## Examples
 
 ### 1. Data Migration Workflow
+
 ```python
 def migrate_data(source_connector, target_connector, tables):
     """Migrate multiple tables between databases."""
@@ -317,6 +329,7 @@ def migrate_data(source_connector, target_connector, tables):
 ```
 
 ### 2. Real-time Synchronization
+
 ```python
 def sync_databases(source_connector, target_connector, table_mapping):
     """Keep databases synchronized in real-time."""
@@ -340,10 +353,10 @@ def sync_databases(source_connector, target_connector, table_mapping):
             )
 ```
 
-
 ## Specific Database Examples
 
 ### DuckDB Integration
+
 ```python
 # DuckDB specific connection
 def attach_duckdb(connector, path: str, name: str):
@@ -394,6 +407,7 @@ with connector.transaction():
 ```
 
 ### PostgreSQL Integration
+
 ```python
 # PostgreSQL specific features
 def attach_postgresql(connector, dbname: str, name: str, **kwargs):
@@ -434,6 +448,7 @@ class PostgreSQLOperations:
 ```
 
 ### MySQL Integration
+
 ```python
 # MySQL specific features
 def attach_mysql(connector, dbname: str, name: str, **kwargs):
@@ -470,6 +485,7 @@ class MySQLOperations:
 ```
 
 ### SQLite3 Integration
+
 ```python
 # SQLite3 specific features
 def attach_sqlite(connector, path: str, name: str, **kwargs):
@@ -506,6 +522,7 @@ class SQLiteOperations:
 ## Monitoring and Logging
 
 ### Performance Monitoring
+
 ```python
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -574,6 +591,7 @@ class MonitoredDatabaseConnector(MultiDatabaseConnector):
 ```
 
 ### Logging Configuration
+
 ```python
 import logging.config
 
@@ -611,6 +629,7 @@ logging.config.dictConfig(LOGGING_CONFIG)
 ## Schema Management
 
 ### Schema Versioning
+
 ```python
 from dataclasses import dataclass
 from datetime import datetime
@@ -662,6 +681,7 @@ class SchemaManager:
 ```
 
 ### Schema Comparison
+
 ```python
 @dataclass
 class ColumnInfo:
@@ -699,6 +719,7 @@ class SchemaComparison:
 ## Data Validation
 
 ### Data Quality Checks
+
 ```python
 from typing import Callable, List
 
@@ -1975,7 +1996,6 @@ class ValidationRuleManager:
         )
 ```
 
-
 ```python
 class AdvancedValidationPatterns:
     """Complex validation patterns for common scenarios."""
@@ -2516,6 +2536,7 @@ if __name__ == "__main__":
 ```
 
 This final implementation includes:
+
 1. Advanced time series validation with seasonality and stationarity checks
 2. Machine learning-based anomaly detection and distribution shift detection
 3. Data transformation validation with schema compatibility and reversibility checks
