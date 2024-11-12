@@ -1,241 +1,521 @@
-# Database Connection Constants Documentation
+# 🔌 Database Connection Constants Documentation
 
-## Table of Contents
+## 📑 Table of Contents
+1. [Overview](#overview) [↩️](#table-of-contents)
+2. [Helper Functions](#helper-functions) [↩️](#table-of-contents)
+3. [Engine Configurations](#engine-configurations) [↩️](#table-of-contents)
+4. [Engine-Specific Examples](#engine-specific-examples) [↩️](#table-of-contents)
+5. [Usage Patterns](#usage-patterns) [↩️](#table-of-contents)
 
-1. [Overview](#overview)
-2. [Helper Functions](#helper-functions)
-3. [Database Engine Configurations](#database-engine-configurations)
-4. [Common Usage Patterns](#common-usage-patterns)
-5. [Engine-Specific Examples](#engine-specific-examples)
-6. [Advanced Use Cases](#advanced-use-cases)
+## 🎯 Overview
 
-## Overview
+The `database_connection_constants.py` module defines configurations and connection parameters for different database engines. Each engine follows a template-based approach that ensures:
 
-The database_connection_constants module provides configuration templates and connection management for multiple database engines. Each engine's configuration follows a consistent structure while accommodating engine-specific requirements.
+- ✨ Consistent configuration structure
+- 🔒 Secure credential management
+- 🔄 Dynamic module loading
+- 🛠️ Engine-specific customization
+- 📝 Clear parameter definitions
 
-### Key Features
+## 🛠️ Helper Functions
 
-- Dynamic module imports
-- Secure credential handling
-- DSN and direct connection support
-- Customizable connection strings
-
-## Helper Functions
-
-### Dynamic Module Import
-
+### Module Import
 ```python
 def get_db_target_engine_module(module_name: str) -> Any:
-    """Dynamically imports database modules"""
+    """
+    Dynamically import database module.
+    
+    Args:
+        module_name: Module to import (e.g., 'psycopg2', 'pyodbc')
+        
+    Returns:
+        Imported module
+        
+    Raises:
+        ImportError: If module not installed
+    """
     try:
         return importlib.import_module(module_name)
     except ImportError as e:
         raise ImportError(f"Failed to import {module_name}. Make sure it's installed.") from e
-
-# Usage example
-try:
-    psycopg2 = get_db_target_engine_module('psycopg2')
-except ImportError:
-    print("Please install psycopg2 first")
 ```
 
 ### Parameter Loading
-
 ```python
 def load_default_parameter_keys_dict(target_database_engine: str, d: Dict[str, Any]) -> Dict[str, Any]:
-    """Loads default parameters excluding sensitive data"""
+    """
+    Load default parameters excluding sensitive data.
+    
+    Args:
+        target_database_engine: Engine identifier
+        d: Configuration dictionary
+        
+    Returns:
+        Dictionary of non-sensitive parameters
+    """
     keys = d[target_database_engine]["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]["LOAD_DEFAULT_PARAMETER_KEYS"]
     return {
-        key: d[target_database_engine]["DEFAULT_PARAMETERS"][key] 
+        key: d[target_database_engine]["DEFAULT_PARAMETERS"][key]
         for key in [k for k in keys if k not in ["USERNAME", "PASSWORD"]]
     }
-
-# Example usage
-params = load_default_parameter_keys_dict("MSSQL", MSSQL)
-print("Secure parameters:", params)
 ```
 
-## Database Engine Configurations
+[↩️ Back to Table of Contents](#table-of-contents)
 
-### Structure Overview
+## 🎨 Engine Configurations
 
 Each database engine configuration follows this structure:
 
 ```python
-ENGINE_CONFIG = {
+ENGINE = {
     "ENGINE_NAME": {
         "DEFAULT_PARAMETERS": {
-            # Connection parameters
-            "DRIVER": "...",
-            "SERVER": "...",
+            # Connection basics
+            "DRIVER": str,
+            "DATABASE_NAME": str,
+            "SERVER": str,
+            "PORT_NUMBER": int,
+            
             # Connection string formatting
             "FORMAT_CONNECTION_STRING": {
-                "LOAD_DEFAULT_PARAMETER_KEYS": [...],
+                "LOAD_DEFAULT_PARAMETER_KEYS": List[str],
                 "IS_DSN_NAME_SUPPORTED": bool,
-                "BASE_CONNECTION_STRING": "...",
+                "BASE_CONNECTION_STRING": str
             }
         },
         "CRUDBASIC": {
-            "IMPORT": "module_name",
+            "IMPORT": str,               # Module to import
+            "PARAMETER_PLACEHOLDER": str, # Query parameter style
+            "IS_USERNAME_AND_PASSWORD_REQUIRED": bool
+        },
+        "CREATE_DATABASE_CONNECTION": {
+            "CONNECTION_NOTES": str,
+            "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": Callable
+        }
+    }
+}
+```
+
+[↩️ Back to Table of Contents](#table-of-contents)
+
+## 🔧 Engine-Specific Examples
+
+### MSSQL Configuration
+```python
+MSSQL = {
+    "MSSQL": {
+        "DEFAULT_PARAMETERS": {
+            "DRIVER": "{ODBC Driver 17 for SQL Server}",
+            "DSN_NAME": "Northwinds2024StudentDSN",
+            "DATABASE_NAME": "Northwinds2024Student",
+            "SERVER": "localhost",
+            "PORT_NUMBER": 13001,
+            "FORMAT_CONNECTION_STRING": {
+                "LOAD_DEFAULT_PARAMETER_KEYS": [
+                    "DRIVER", "DSN_NAME", "DATABASE_NAME", 
+                    "SERVER", "PORT_NUMBER"
+                ],
+                "IS_DSN_NAME_SUPPORTED": True,
+                "BASE_CONNECTION_STRING": (
+                    "DRIVER={0}; SERVER={1},{2}; "
+                    "DATABASE={3}; UID={4}; PWD={5};"
+                )
+            }
+        },
+        "CRUDBASIC": {
+            "IMPORT": "pyodbc",
             "PARAMETER_PLACEHOLDER": "?",
+            "IS_USERNAME_AND_PASSWORD_REQUIRED": True
+        }
+    }
+}
+```
+
+### PostgreSQL Configuration
+```python
+POSTGRESQL = {
+    "POSTGRESQL": {
+        "DEFAULT_PARAMETERS": {
+            "DRIVER": "{PostgreSQL ANSI(x64)}",
+            "DSN_NAME": "PostgreSQL_DSN",
+            "DATABASE_NAME": "NorthwindOrderSubsystem",
+            "SERVER": "localhost",
+            "PORT_NUMBER": 20301,
+            "FORMAT_CONNECTION_STRING": {
+                "LOAD_DEFAULT_PARAMETER_KEYS": [
+                    "DRIVER", "DSN_NAME", "DATABASE_NAME", 
+                    "SERVER", "PORT_NUMBER"
+                ],
+                "IS_DSN_NAME_SUPPORTED": "Y",
+                "BASE_CONNECTION_STRING": (
+                    "DRIVER={0}; SERVER={1}; Port={2}; "
+                    "DATABASE={3}; UID={4}; PWD={5};"
+                )
+            }
+        },
+        "CRUDBASIC": {
+            "IMPORT": "pyodbc",
+            "IS_USERNAME_AND_PASSWORD_REQUIRED": True,
+            "PARAMETER_PLACEHOLDER": "?"
+        }
+    }
+}
+```
+
+[↩️ Back to Table of Contents](#table-of-contents)
+
+## 📋 Usage Patterns
+
+### Basic Connection
+```python
+# Load engine module
+module_name = POSTGRESQL["POSTGRESQL"]["CRUDBASIC"]["IMPORT"]
+db_module = get_db_target_engine_module(module_name)
+
+# Get default parameters
+params = load_default_parameter_keys_dict("POSTGRESQL", POSTGRESQL)
+
+# Create connection string
+conn_str = POSTGRESQL["POSTGRESQL"]["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]["BASE_CONNECTION_STRING"].format(
+    params["DRIVER"],
+    params["SERVER"],
+    params["PORT_NUMBER"],
+    params["DATABASE_NAME"],
+    "username",  # From secure source
+    "password"   # From secure source
+)
+
+# Connect
+conn = db_module.connect(conn_str)
+```
+
+### DSN Connection
+```python
+def connect_with_dsn(engine_config: dict, dsn_name: str):
+    """Connect using DSN if supported."""
+    if not engine_config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]["IS_DSN_NAME_SUPPORTED"]:
+        raise ValueError("DSN not supported for this engine")
+        
+    conn_str = engine_config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]["BASE_CONNECTION_STRING"].format(
+        dsn=dsn_name
+    )
+    
+    module = get_db_target_engine_module(
+        engine_config["CRUDBASIC"]["IMPORT"]
+    )
+    return module.connect(conn_str)
+```
+
+[↩️ Back to Table of Contents](#table-of-contents)
+
+### Best Practices
+
+1. **Secure Credentials**
+   - Never hardcode credentials in configuration
+   - Use environment variables or secure vaults
+   - Exclude sensitive data from parameter loading
+
+2. **Connection Management**
+   - Close connections properly
+   - Use connection pooling when supported
+   - Handle connection errors gracefully
+
+3. **DSN Usage**
+   - Verify DSN support before using
+   - Ensure DSN is properly configured
+   - Fall back to direct connection if needed
+
+[↩️ Back to Table of Contents](#table-of-contents)
+
+# 🔌 Database Connection Constants
+
+## 📚 Table of Contents
+1. [Core Structure](#core-structure) [↩️](#table-of-contents)
+2. [Engine Configurations](#engine-configurations) [↩️](#table-of-contents)
+3. [Parameter Reference](#parameter-reference) [↩️](#table-of-contents)
+4. [Connection Strings](#connection-strings) [↩️](#table-of-contents)
+5. [Error Handling](#error-handling) [↩️](#table-of-contents)
+
+## 🏗️ Core Structure
+
+Each database engine configuration follows this template:
+
+```python
+ENGINE_NAME = {
+    "ENGINE_NAME": {  # Matches TargetDatabaseEngine enum
+        "DEFAULT_PARAMETERS": {
+            # Core connection settings
+            "DRIVER": str,
+            "PORT_NUMBER": int,
+            "SERVER": str,
+            
+            # Connection string formats
+            "FORMAT_CONNECTION_STRING": {
+                "LOAD_DEFAULT_PARAMETER_KEYS": List[str],
+                "IS_DSN_NAME_SUPPORTED": bool,
+                "BASE_CONNECTION_STRING": str
+            }
+        },
+        "CRUDBASIC": {
+            "IMPORT": str,  # Module to import
+            "PARAMETER_PLACEHOLDER": str,  # SQL parameter style
             "IS_USERNAME_AND_PASSWORD_REQUIRED": bool
         }
     }
 }
 ```
 
-## Common Usage Patterns
+[↩️ Back to Table of Contents](#table-of-contents)
 
-### 1. Basic Connection Setup
+## 🔧 Engine Configurations
 
+### PostgreSQL (psycopg2)
 ```python
-# MSSQL Connection Example
-def create_mssql_connection():
-    config = MSSQL["MSSQL"]
-    conn_str = config["FINALIZED_CONNECTION_PARAMS"]["LAMBDA_FINALIZED_BASE_CONNECTION_STRING"](MSSQL)
-    
-    connection_func = config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](conn_str)
-    return connection_func()
-
-# PostgreSQL with psycopg2
-def create_postgres_connection():
-    config = PSYCOPG2["PSYCOPG2"]
-    conn_str = config["FINALIZED_CONNECTION_PARAMS"]["LAMBDA_FINALIZED_BASE_CONNECTION_STRING"](PSYCOPG2)
-    return config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](conn_str)()
+PSYCOPG2 = {
+    "PSYCOPG2": {
+        "DEFAULT_PARAMETERS": {
+            "DATABASE_NAME": "postgres",
+            "SERVER": "localhost",
+            "PORT_NUMBER": 5432,
+            "FORMAT_CONNECTION_STRING": {
+                "LOAD_DEFAULT_PARAMETER_KEYS": [
+                    "SERVER", "PORT_NUMBER", "DATABASE_NAME"
+                ],
+                "IS_DSN_NAME_SUPPORTED": False,
+                "BASE_CONNECTION_STRING": (
+                    "host={0} port={1} dbname={2} "
+                    "user={3} password={4}"
+                )
+            }
+        },
+        "CRUDBASIC": {
+            "IMPORT": "psycopg2",
+            "PARAMETER_PLACEHOLDER": "%s",
+            "IS_USERNAME_AND_PASSWORD_REQUIRED": True
+        }
+    }
+}
 ```
 
-### 2. DSN Connection Handling
-
+### MSSQL
 ```python
-def connect_with_dsn(engine_config: dict, dsn_name: str):
-    if not engine_config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]["IS_DSN_NAME_SUPPORTED"]:
-        raise ValueError("DSN not supported for this engine")
-    
-    conn_str = engine_config["FINALIZED_CONNECTION_PARAMS"]["LAMBDA_FINALIZED_DSN_CONNECTION_STRING"](
-        {"DSN_NAME": dsn_name}
-    )
-    return engine_config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](conn_str)()
+MSSQL = {
+    "MSSQL": {
+        "DEFAULT_PARAMETERS": {
+            "DRIVER": "{ODBC Driver 17 for SQL Server}",
+            "SERVER": "localhost",
+            "PORT_NUMBER": 1433,
+            "DATABASE_NAME": "master",
+            "FORMAT_CONNECTION_STRING": {
+                "LOAD_DEFAULT_PARAMETER_KEYS": [
+                    "DRIVER", "SERVER", "PORT_NUMBER", 
+                    "DATABASE_NAME"
+                ],
+                "IS_DSN_NAME_SUPPORTED": True,
+                "BASE_CONNECTION_STRING": (
+                    "DRIVER={0};SERVER={1},{2};"
+                    "DATABASE={3};UID={4};PWD={5};"
+                )
+            }
+        },
+        "CRUDBASIC": {
+            "IMPORT": "pyodbc",
+            "PARAMETER_PLACEHOLDER": "?",
+            "IS_USERNAME_AND_PASSWORD_REQUIRED": True
+        }
+    }
+}
 ```
 
-## Engine-Specific Examples
-
-### 1. MSSQL with Windows Authentication
-
+### SQLite3
 ```python
-def mssql_windows_auth():
-    config = MSSQL["MSSQL"]
-    custom_params = {
-        "DRIVER": "{ODBC Driver 17 for SQL Server}",
+SQLITE3 = {
+    "SQLITE3": {
+        "DEFAULT_PARAMETERS": {
+            "DRIVER": "{SQLite3 ODBC Driver}",
+            "DATABASE_NAME": ":memory:",  # Default to in-memory
+            "FORMAT_CONNECTION_STRING": {
+                "LOAD_DEFAULT_PARAMETER_KEYS": ["DATABASE_NAME"],
+                "IS_DSN_NAME_SUPPORTED": False,
+                "BASE_CONNECTION_STRING": "Database={0};"
+            }
+        },
+        "CRUDBASIC": {
+            "IMPORT": "sqlite3",
+            "PARAMETER_PLACEHOLDER": "?",
+            "IS_USERNAME_AND_PASSWORD_REQUIRED": False
+        }
+    }
+}
+```
+
+[↩️ Back to Table of Contents](#table-of-contents)
+
+## 📝 Parameter Reference
+
+### Connection Parameters
+```python
+class ConnectionParameters:
+    """Common connection parameters across engines."""
+    
+    CORE_PARAMS = {
+        "DRIVER": "Database driver name",
+        "SERVER": "Database server hostname/IP",
+        "PORT_NUMBER": "Database port number",
+        "DATABASE_NAME": "Database/schema name"
+    }
+    
+    AUTH_PARAMS = {
+        "USERNAME": "Database username",
+        "PASSWORD": "Database password",
+        "UID": "User ID (alternative to USERNAME)",
+        "PWD": "Password (alternative to PASSWORD)"
+    }
+    
+    DSN_PARAMS = {
+        "DSN_NAME": "Data Source Name identifier"
+    }
+
+def get_parameter_info(engine_type: TargetDatabaseEngine) -> Dict[str, str]:
+    """Get parameter information for engine type."""
+    config = get_engine_config(engine_type)
+    params = {}
+    
+    # Get required parameters
+    for key in config["DEFAULT_PARAMETERS"]["LOAD_DEFAULT_PARAMETER_KEYS"]:
+        params[key] = ConnectionParameters.CORE_PARAMS.get(key, "")
+    
+    # Add auth if required
+    if config["CRUDBASIC"]["IS_USERNAME_AND_PASSWORD_REQUIRED"]:
+        params.update(ConnectionParameters.AUTH_PARAMS)
+    
+    # Add DSN if supported
+    if config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]["IS_DSN_NAME_SUPPORTED"]:
+        params.update(ConnectionParameters.DSN_PARAMS)
+    
+    return params
+```
+
+[↩️ Back to Table of Contents](#table-of-contents)
+
+## 🔗 Connection Strings
+
+### Connection String Formatting
+```python
+def build_connection_string(
+    engine_type: TargetDatabaseEngine,
+    params: Dict[str, Any],
+    use_dsn: bool = False
+) -> str:
+    """
+    Build connection string for specified engine.
+    
+    Args:
+        engine_type: Target database engine
+        params: Connection parameters
+        use_dsn: Whether to use DSN format
+        
+    Returns:
+        Formatted connection string
+    """
+    config = get_engine_config(engine_type)
+    format_config = config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]
+    
+    if use_dsn:
+        if not format_config["IS_DSN_NAME_SUPPORTED"]:
+            raise ValueError(f"DSN not supported for {engine_type}")
+        return format_config["BASE_DSN_STRING"].format(**params)
+        
+    return format_config["BASE_CONNECTION_STRING"].format(**params)
+
+# Examples:
+# PostgreSQL
+conn_str = build_connection_string(
+    TargetDatabaseEngine.POSTGRESQL,
+    {
         "SERVER": "localhost",
-        "DATABASE_NAME": "master",
-        "Trusted_Connection": "yes"
+        "PORT_NUMBER": 5432,
+        "DATABASE_NAME": "mydb",
+        "USERNAME": "user",
+        "PASSWORD": "pass"
     }
-    
-    conn_str = "DRIVER={0};SERVER={1};DATABASE={2};Trusted_Connection={3}".format(
-        custom_params["DRIVER"],
-        custom_params["SERVER"],
-        custom_params["DATABASE_NAME"],
-        custom_params["Trusted_Connection"]
-    )
-    
-    return config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](conn_str)()
+)
+
+# MSSQL with DSN
+conn_str = build_connection_string(
+    TargetDatabaseEngine.MSSQL,
+    {"DSN_NAME": "MyDSN"},
+    use_dsn=True
+)
 ```
 
-### 2. PostgreSQL with SSL
+[↩️ Back to Table of Contents](#table-of-contents)
 
+## ⚠️ Error Handling
+
+### Error Types
 ```python
-def postgres_ssl_connection():
-    config = POSTGRESQL["POSTGRESQL"]
-    custom_params = {
-        **config["DEFAULT_PARAMETERS"],
-        "sslmode": "verify-full",
-        "sslcert": "/path/to/client-cert.pem",
-        "sslkey": "/path/to/client-key.pem",
-        "sslrootcert": "/path/to/server-ca.pem"
-    }
-    
-    conn_str = "host={SERVER};port={PORT_NUMBER};dbname={DATABASE_NAME};" \
-               "user={USERNAME};password={PASSWORD};" \
-               "sslmode={sslmode};sslcert={sslcert};sslkey={sslkey};sslrootcert={sslrootcert}"
-               
-    return config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](
-        conn_str.format(**custom_params)
-    )()
+class DatabaseError(Exception):
+    """Base exception for database errors."""
+    pass
+
+class ConnectionStringError(DatabaseError):
+    """Error in connection string formatting."""
+    pass
+
+class ParameterError(DatabaseError):
+    """Error in connection parameters."""
+    pass
+
+class DriverError(DatabaseError):
+    """Error with database driver."""
+    pass
 ```
 
-### 3. SQLite3 with Custom Settings
-
+### Error Handling Patterns
 ```python
-def sqlite_optimized_connection():
-    config = SQLITE3["SQLITE3"]
-    custom_params = {
-        "DRIVER": config["DEFAULT_PARAMETERS"]["DRIVER"],
-        "DATABASE_NAME": ":memory:",  # In-memory database
-        "TIMEOUT": 30,
-        "CACHE_SIZE": 2000,
-        "PAGE_SIZE": 4096
-    }
+def safe_connect(
+    engine_type: TargetDatabaseEngine,
+    params: Dict[str, Any]
+) -> Any:
+    """
+    Safely establish database connection.
     
-    conn_str = "DRIVER={DRIVER};DATABASE={DATABASE_NAME};" \
-               "TIMEOUT={TIMEOUT};CACHE_SIZE={CACHE_SIZE};PAGE_SIZE={PAGE_SIZE}"
-               
-    return config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](
-        conn_str.format(**custom_params)
-    )()
+    Args:
+        engine_type: Target database engine
+        params: Connection parameters
+        
+    Returns:
+        Database connection
+        
+    Raises:
+        DatabaseError: On connection failure
+    """
+    try:
+        # Validate parameters
+        config = get_engine_config(engine_type)
+        if not all(
+            key in params 
+            for key in config["DEFAULT_PARAMETERS"]["LOAD_DEFAULT_PARAMETER_KEYS"]
+        ):
+            raise ParameterError("Missing required parameters")
+        
+        # Build connection string
+        conn_str = build_connection_string(engine_type, params)
+        
+        # Import module
+        module_name = config["CRUDBASIC"]["IMPORT"]
+        try:
+            module = get_db_target_engine_module(module_name)
+        except ImportError as e:
+            raise DriverError(f"Failed to load driver: {e}")
+        
+        # Establish connection
+        return module.connect(conn_str)
+        
+    except Exception as e:
+        raise DatabaseError(f"Connection failed: {str(e)}")
 ```
 
-## Advanced Use Cases
+[↩️ Back to Table of Contents](#table-of-contents)
 
-### 1. Connection Pool Manager
-
-```python
-class DatabasePoolManager:
-    def __init__(self, engine_type: str, max_connections: int = 5):
-        self.engine_config = globals()[engine_type][engine_type]
-        self.pool = []
-        self.max_connections = max_connections
-        
-    def get_connection(self):
-        if not self.pool:
-            conn_str = self.engine_config["FINALIZED_CONNECTION_PARAMS"]["LAMBDA_FINALIZED_BASE_CONNECTION_STRING"](
-                globals()[self.engine_type]
-            )
-            new_conn = self.engine_config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](
-                conn_str
-            )()
-            return new_conn
-        return self.pool.pop()
-    
-    def return_connection(self, conn):
-        if len(self.pool) < self.max_connections:
-            self.pool.append(conn)
-        else:
-            conn.close()
-```
-
-### 2. Multi-Database Manager
-
-```python
-class MultiDatabaseManager:
-    def __init__(self):
-        self.connections = {}
-        
-    def add_connection(self, name: str, engine_type: str, **params):
-        config = globals()[engine_type][engine_type]
-        custom_params = {**config["DEFAULT_PARAMETERS"], **params}
-        
-        conn_str = config["FINALIZED_CONNECTION_PARAMS"]["LAMBDA_FINALIZED_BASE_CONNECTION_STRING"](
-            {engine_type: {"DEFAULT_PARAMETERS": custom_params}}
-        )
-        
-        self.connections[name] = config["CREATE_DATABASE_CONNECTION"]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](
-            conn_str
-        )()
-        
-    def execute_query(self, db_name: str, query: str):
-        if db_name not in self.connections:
-            raise ValueError(f"No connection found for {db_name}")
-        with self.connections[db_name].cursor() as cursor:
-            cursor.execute(query)
-            return cursor.fetchall()
-```
