@@ -8,7 +8,7 @@
 5. [Error Handling](#error-handling)
 6. [Connection Lifecycle](#connection-lifecycle)
 
-## Core Concepts 🎯
+## Core Concepts
 
 Key Features:
 - 🔑 Template-based configuration
