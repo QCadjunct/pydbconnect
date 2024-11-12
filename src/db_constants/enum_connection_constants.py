@@ -1,5 +1,6 @@
 from enum import Enum
-from typing import Optional,Dict, Any
+from typing import Dict, Any, Type
+from abc import ABC, abstractmethod
 
 class TargetDatabaseEngine(Enum):
     """Database engines supported by pydbconnect."""
@@ -52,6 +53,36 @@ class TargetDatabaseEngine(Enum):
             return False
             
         return True
+    
+    def get_admin_handler(self) -> 'DatabaseAdminTemplate':
+        """
+        Get appropriate admin handler based on engine configuration.
+        """
+        try:
+            from . import templates
+            engine_config = getattr(templates, self.value)
+            
+            handler_class = engine_config.get('ADMIN_HANDLER')
+            if not handler_class:
+                raise ValueError(f"No admin handler configured for {self.value}")
+                
+            return handler_class()
+            
+        except Exception as e:
+            raise ValueError(f"Error creating admin handler for {self.value}: {str(e)}")
+
+class DatabaseAdminTemplate(ABC):
+    """Abstract base class for database administration."""
+    
+    @abstractmethod
+    def backup_database(self, path: str) -> None:
+        """Backup database to specified path."""
+        pass
+    
+    @abstractmethod
+    def restore_database(self, path: str) -> None:
+        """Restore database from specified path."""
+        pass
 
 class TargetDatabaseConnectionStringOption(Enum):
     """Connection string options for database connections."""
