@@ -1,12 +1,12 @@
 # Database Connection Constants Documentation 🔌
 
 ## Table of Contents
-1. [Core Concepts](#core-concepts) 🎯
-2. [Engine Configuration](#engine-configuration) ⚙️
-3. [Usage Examples](#usage-examples) 💡
-4. [Advanced Patterns](#advanced-patterns) 🚀
-5. [Error Handling](#error-handling) 🛠️
-6. [Connection Lifecycle](#connection-lifecycle) 🔄
+1. [Core Concepts](#core-concepts)�
+2. [Engine Configuration](#engine-configuration)
+3. [Usage Examples](#usage-examples)
+4. [Advanced Patterns](#advanced-patterns)
+5. [Error Handling](#error-handling)
+6. [Connection Lifecycle](#connection-lifecycle)
 
 ## Core Concepts 🎯
 
