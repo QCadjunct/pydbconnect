@@ -1,7 +1,7 @@
 # Database Connection Constants Documentation 🔌
 
 ## Table of Contents
-1. [Core Concepts](#core-concepts)�
+1. [Core Concepts](#core-concepts)
 2. [Engine Configuration](#engine-configuration)
 3. [Usage Examples](#usage-examples)
 4. [Advanced Patterns](#advanced-patterns)
@@ -49,7 +49,7 @@ ENGINE_CONFIG = {
 
 [Table of Contents](#Table-ofContents)
 
-## Engine Configuration ⚙️
+## Engine Configuration
 
 ### PostgreSQL Configuration
 ```python
@@ -130,7 +130,7 @@ SQLITE = {
 }
 ```
 
-## Extended Validation Patterns 🛡️
+## Extended Validation Patterns
 
 ### Parameter Validation
 ```python
@@ -177,7 +177,7 @@ class ConnectionValidator:
                 raise ValueError(f"SSL verification requires: {missing_ssl}")
 ```
 
-## Error Handling Examples 🛠️
+## Error Handling Examples
 
 ```python
 class DatabaseError(Exception):
@@ -227,7 +227,7 @@ class ConnectionManager:
                 time.sleep(self.retry_delay * (attempt + 1))
 ```
 
-## Connection Lifecycle Management 🔄
+## Connection Lifecycle Management
 
 ```python
 class ConnectionLifecycle:
