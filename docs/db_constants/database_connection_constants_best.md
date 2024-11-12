@@ -283,6 +283,8 @@ class ConnectionLifecycle:
                 self.connection = None
                 self.last_used = None
 
+[Back to the Table of Contents](#Table-of-Contents)
+
 # Usage Example
 lifecycle = ConnectionLifecycle(
     TargetDatabaseEngine.POSTGRESQL,
@@ -298,3 +300,6 @@ with lifecycle.get_connection() as conn:
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users")
 ```
+
+[Back to the Table of Contents](#Table-of-Contents)
+
