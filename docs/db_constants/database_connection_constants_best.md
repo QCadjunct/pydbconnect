@@ -46,8 +46,7 @@ ENGINE_CONFIG = {
     }
 }
 ```
-
-[Table of Contents](#Table-ofContents)
+[Table of Contents](#Table-of-Contents)
 
 ## Engine Configuration
 
