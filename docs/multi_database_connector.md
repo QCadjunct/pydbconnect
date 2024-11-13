@@ -19,6 +19,8 @@ The Multi-Database Connector provides a unified interface for managing multiple 
 
 ![alt text](image.png)
 
+[Back to the Table of Contents](#table-of-contents)
+
 ## Features
 
 ### Multi-Database Support
@@ -139,6 +141,9 @@ connector.executemany(
 )
 ```
 
+[Back to the Table of Contents](#table-of-contents)
+
+
 ## Database-Specific Configurations
 
 ### MSSQL
@@ -180,6 +185,9 @@ connector.attach(
     "mysql"
 )
 ```
+
+[Back to the Table of Contents](#table-of-contents)
+
 
 ## Best Practices
 
@@ -226,6 +234,9 @@ def safe_execute(connector, database, query):
         return False, str(e)
 ```
 
+[Back to the Table of Contents](#table-of-contents)
+
+
 ## Performance Optimization
 
 ### 1. Connection Pooling
@@ -266,6 +277,9 @@ def optimize_query(connector, query):
     }
 ```
 
+[Back to the Table of Contents](#table-of-contents)
+
+
 ## Troubleshooting
 
 ### Common Issues and Solutions
@@ -301,6 +315,9 @@ def retry_on_deadlock(max_retries=3):
         return wrapper
     return decorator
 ```
+
+[Back to the Table of Contents](#table-of-contents)
+
 
 ## Examples
 
@@ -3252,7 +3269,244 @@ if __name__ == "__main__":
     main()
 ```
 
-This final part completes the framework with:
+# Multi-Database Connector Documentation
+
+[Back to the Table of Contents](#table-of-contents)
+
+
+## Installation
+
+### Prerequisites
+
+- Python 3.8+
+- ODBC drivers for your databases
+- Required Python packages:
+  - `pyodbc`
+  - `pandas`
+  - `numpy`
+  - `logging`
+  - `prometheus_client` (optional, for monitoring)
+
+### Basic Installation
+
+```bash
+pip install multi-database-connector
+```
+
+### Installing Database Drivers
+
+#### MSSQL
+```bash
+# Ubuntu/Debian
+sudo apt-get install msodbcsql17
+sudo apt-get install unixodbc-dev
+
+# Red Hat/CentOS
+sudo yum install msodbcsql17
+sudo yum install unixODBC-devel
+
+# macOS
+brew install microsoft/mssql-release/msodbcsql17
+```
+
+#### MySQL
+```bash
+# Ubuntu/Debian
+sudo apt-get install mysql-connector-odbc
+
+# Red Hat/CentOS
+sudo yum install mysql-connector-odbc
+
+# macOS
+brew install mysql-connector-c++
+```
+
+[Back to the Table of Contents](#table-of-contents)
+
+
+## Basic Usage
+
+### 1. Initialize Connector
+
+```python
+from multi_database_connector import MultiDatabaseConnector
+
+# Create connector instance
+connector = MultiDatabaseConnector()
+```
+
+### 2. Attach Databases
+
+```python
+# Attach MSSQL database
+connector.attach(
+    "DRIVER={ODBC Driver 17 for SQL Server};SERVER=server1;DATABASE=db1;Trusted_Connection=yes",
+    "sales_db",
+    "mssql"
+)
+
+# Attach MySQL database
+connector.attach(
+    "DRIVER={MySQL ODBC 8.0 Driver};SERVER=server2;DATABASE=db2;UID=user;PWD=pass",
+    "inventory_db",
+    "mysql"
+)
+```
+
+### 3. Basic Operations
+
+```python
+# Execute simple query
+results = connector.query("sales_db", "SELECT * FROM orders")
+
+# Execute with parameters
+order_id = 1234
+results = connector.query(
+    "sales_db",
+    "SELECT * FROM orders WHERE order_id = ?",
+    params=[order_id]
+)
+
+# Execute write operation
+connector.execute(
+    "sales_db",
+    "INSERT INTO orders (product_id, quantity) VALUES (?, ?)",
+    params=[101, 5]
+)
+```
+
+### 4. Transaction Management
+
+```python
+# Single database transaction
+with connector.transaction():
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+    connector.execute("sales_db", "UPDATE inventory SET stock = stock - 1")
+    # Automatic rollback if any error occurs
+
+# Multi-database transaction (if supported by databases)
+with connector.transaction(["sales_db", "inventory_db"]):
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+    connector.execute("inventory_db", "UPDATE stock SET quantity = quantity - 1")
+```
+
+[Back to the Table of Contents](#table-of-contents)
+
+
+## Advanced Features
+
+### Cross-Database Queries
+
+```python
+# Query across databases
+results = connector.query("sales_db", """
+    SELECT s.order_id, i.product_name
+    FROM sales_db.dbo.orders s
+    JOIN inventory_db.dbo.products i ON s.product_id = i.id
+""")
+```
+
+### Bulk Operations
+
+```python
+# Bulk insert
+orders = [
+    (1, "Product A", 100),
+    (2, "Product B", 200),
+    (3, "Product C", 300)
+]
+
+connector.executemany(
+    "sales_db",
+    "INSERT INTO orders (id, product, value) VALUES (?, ?, ?)",
+    orders
+)
+```
+
+### Data Movement
+
+```python
+# Copy table between databases
+connector.copy_table(
+    source_db="sales_db",
+    target_db="analytics_db",
+    table_name="orders",
+    batch_size=1000
+)
+
+# Copy with transformation
+def transform_row(row):
+    return {
+        'order_id': row['id'],
+        'total_value': row['value'] * 1.1  # Add 10% markup
+    }
+
+connector.copy_table(
+    source_db="sales_db",
+    target_db="analytics_db",
+    table_name="orders",
+    transform_func=transform_row
+)
+```
+
+### Connection Pooling
+
+```python
+# Enable connection pooling
+connector = MultiDatabaseConnector(
+    pool_size=5,
+    pool_timeout=30
+)
+
+# Automatic connection management
+for _ in range(10):
+    with connector.get_connection("sales_db") as conn:
+        # Connection automatically returned to pool
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM orders")
+```
+
+### Monitoring Integration
+
+```python
+# Enable Prometheus monitoring
+connector = MultiDatabaseConnector(enable_monitoring=True)
+
+# Custom metrics
+connector.add_metric(
+    name="query_duration_seconds",
+    description="Time spent executing queries",
+    metric_type="histogram"
+)
+
+# Access metrics
+metrics = connector.get_metrics()
+print(f"Average query duration: {metrics['query_duration_seconds'].mean()}")
+```
+
+### Async Support
+
+```python
+# Async query execution
+async def get_orders():
+    results = await connector.query_async(
+        "sales_db",
+        "SELECT * FROM orders"
+    )
+    return results
+
+# Async transaction
+async with connector.transaction_async():
+    await connector.execute_async(
+        "sales_db",
+        "INSERT INTO orders VALUES (1, 100)"
+    )
+```
+
+
+### This final part completes the framework with:
+
+These sections provide a comprehensive guide for installing and using the Multi-Database Connector, from basic setup to advanced features. The documentation maintains consistency with the existing sections while providing clear, practical examples for users at different expertise levels.
 
 1. **Comprehensive Testing**:
    - Unit tests for validation rules
@@ -3274,4 +3528,5 @@ This final part completes the framework with:
    - Resource tracking
    - Error handling
 
-The framework is now complete and production-ready. Would you like me to explain any specific part in more detail?
+[Back to the Table of Contents](#table-of-contents)
+
