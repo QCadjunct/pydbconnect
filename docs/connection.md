@@ -1,6 +1,7 @@
 # PyDBConnect Documentation
 
 ## Table of Contents
+
 1. [Introduction](#introduction)
 2. [Installation & Setup](#installation--setup)
 3. [Core Concepts](#core-concepts)
@@ -23,6 +24,8 @@ PyDBConnect is a powerful yet intuitive database interface library that simplifi
 - **Multi-Engine Support**: Works with MSSQL, PostgreSQL, MySQL, SQLite, and more
 - **Transaction Support**: Both automatic and manual transaction management
 - **Modern Python**: Leverages modern Python features and type hints
+
+[Back to the Table of Contents](#table-of-contents)
 
 ## Installation & Setup
 
@@ -51,6 +54,9 @@ DEFAULT_KEY_MANAGEMENT_ENV_FILE=path/to/env/file
 MSSQL_DEFAULT_PORT=1433
 POSTGRES_DEFAULT_PORT=5432
 ```
+
+[Back to the Table of Contents](#table-of-contents)
+
 
 ## Core Concepts
 
@@ -86,6 +92,9 @@ class TargetDatabaseConnectionStringOption(Enum):
     Customize_DSN_AndDefaultUserPwd = 7   # Use DSN, default credentials
     Customize_DSN_AndChangeUserPwd = 8    # Use DSNCustom string and credentials
 ```
+
+[Back to the Table of Contents](#table-of-contents)
+
 
 ## Connection Management
 
@@ -257,6 +266,9 @@ db = DatabaseConnection(
     event_handler=MyConnectionHandler()
 )
 ```
+
+[Back to the Table of Contents](#table-of-contents)
+
 
 ## CRUD Operations
 
@@ -539,6 +551,8 @@ def process_batch_orders(db: DatabaseConnection, orders: list):
                 # Continue with next order, outer transaction maintains integrity
 ```
 
+[Back to the Table of Contents](#table-of-contents)
+
 ## Advanced Features
 
 ### 1. Stored Procedures
@@ -600,6 +614,7 @@ def load_csv_data(db: DatabaseConnection, csv_path: str, table: str):
             print(f"Processed {min(i + 1000, total)}/{total} records")
 ```
 
+[Back to the Table of Contents](#table-of-contents)
 
 ## Error Handling & Logging
 
@@ -713,6 +728,8 @@ class LoggedDatabaseConnection(DatabaseConnection):
             self.logger.log_error(e, {"sql": sql, "args": args})
             raise
 ```
+
+[Back to the Table of Contents](#table-of-contents)
 
 ## Best Practices & Patterns
 
@@ -908,8 +925,6 @@ def process_user(user_id: int):
     with pooled_connection(pool) as db:
         return db.select("users", where={"id": user_id})
 ```
-
-# PyDBConnect Documentation (Part 4)
 
 ## Advanced Usage Scenarios
 
@@ -5263,12 +5278,378 @@ db.insert("users", raw_input_data)  # Risky
 # Avoid skipping staging environment
 ```
 
-This completes our comprehensive documentation of PyDBConnect. The documentation covers:
+[Back to the Table of Contents](#table-of-contents)
 
-1. Core functionality and extensions
-2. Advanced features for production use
-3. Security and compliance
-4. Performance optimization
-5. Best practices and anti-patterns
+## Transaction Handling
 
-Would you like me to elaborate on any specific aspect or provide additional examples for any section?
+### Basic Transaction Management
+
+```python
+# Single database transaction
+with connector.transaction():
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+    connector.execute("sales_db", "UPDATE inventory SET stock = stock - 1")
+    # Automatic rollback if any error occurs
+
+# Manual transaction control
+connector.begin_transaction()
+try:
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+    connector.execute("sales_db", "UPDATE inventory SET stock = stock - 1")
+    connector.commit()
+except Exception as e:
+    connector.rollback()
+    raise
+```
+
+### Multi-Database Transactions
+
+```python
+# Cross-database transaction
+with connector.transaction(["sales_db", "inventory_db"]):
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+    connector.execute("inventory_db", "UPDATE stock SET quantity = quantity - 1")
+```
+
+### Savepoints
+
+```python
+with connector.transaction():
+    # Create first order
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+    
+    # Create savepoint
+    connector.savepoint("after_first_order")
+    
+    try:
+        # Create second order
+        connector.execute("sales_db", "INSERT INTO orders VALUES (2, 50)")
+    except Exception:
+        # Rollback to savepoint if second order fails
+        connector.rollback_to("after_first_order")
+```
+
+### Transaction Isolation Levels
+
+```python
+# Set isolation level for transaction
+with connector.transaction(isolation_level="SERIALIZABLE"):
+    connector.execute("sales_db", "SELECT * FROM orders WHERE id = 1 FOR UPDATE")
+    connector.execute("sales_db", "UPDATE orders SET status = 'processing'")
+```
+
+### Transaction Event Handlers
+
+```python
+class TransactionLogger:
+    def on_begin(self):
+        logging.info("Transaction started")
+        
+    def on_commit(self):
+        logging.info("Transaction committed")
+        
+    def on_rollback(self):
+        logging.info("Transaction rolled back")
+
+# Use with transaction
+with connector.transaction(event_handler=TransactionLogger()):
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+```
+
+[Back to the Table of Contents](#table-of-contents)
+
+## API Reference
+
+### Connection Management
+
+#### DatabaseConnection
+
+```python
+class DatabaseConnection:
+    def __init__(self, engine_type: TargetDatabaseEngine,
+                 connection_string_option: TargetDatabaseConnectionStringOption):
+        """
+        Initialize database connection.
+        
+        Args:
+            engine_type: Type of database engine to connect to
+            connection_string_option: Connection string configuration option
+        """
+        pass
+
+    def connect_to_database(self) -> 'DatabaseConnection':
+        """
+        Establish database connection.
+        
+        Returns:
+            Self for method chaining
+        """
+        pass
+
+    def close(self):
+        """Close database connection."""
+        pass
+
+    @contextmanager
+    def transaction(self, databases: List[str] = None, 
+                   isolation_level: str = None) -> Generator:
+        """
+        Create transaction context manager.
+        
+        Args:
+            databases: List of databases to include in transaction
+            isolation_level: Transaction isolation level
+            
+        Yields:
+            Transaction context
+        """
+        pass
+```
+
+### Query Execution
+
+#### Execute Operations
+
+```python
+def execute(self, database: str, query: str, 
+            params: Optional[tuple] = None) -> Any:
+    """
+    Execute database query.
+    
+    Args:
+        database: Target database name
+        query: SQL query to execute
+        params: Query parameters
+        
+    Returns:
+        Query result
+    """
+    pass
+
+def execute_many(self, database: str, query: str, 
+                params_list: List[tuple]) -> List[Any]:
+    """
+    Execute batch operation.
+    
+    Args:
+        database: Target database name
+        query: SQL query to execute
+        params_list: List of parameter sets
+        
+    Returns:
+        List of results
+    """
+    pass
+```
+
+#### Query Operations
+
+```python
+def query(self, database: str, query: str, 
+          params: Optional[tuple] = None) -> pd.DataFrame:
+    """
+    Execute query and return results as DataFrame.
+    
+    Args:
+        database: Target database name
+        query: SQL query to execute
+        params: Query parameters
+        
+    Returns:
+        pandas DataFrame containing query results
+    """
+    pass
+
+def query_raw(self, database: str, query: str,
+              params: Optional[tuple] = None) -> List[tuple]:
+    """
+    Execute query and return raw results.
+    
+    Args:
+        database: Target database name
+        query: SQL query to execute
+        params: Query parameters
+        
+    Returns:
+        List of result tuples
+    """
+    pass
+```
+
+### Data Movement
+
+```python
+def copy_table(self, source_db: str, target_db: str,
+               table_name: str, batch_size: int = 1000):
+    """
+    Copy table between databases.
+    
+    Args:
+        source_db: Source database name
+        target_db: Target database name
+        table_name: Name of table to copy
+        batch_size: Number of records per batch
+    """
+    pass
+
+def bulk_insert(self, database: str, table: str,
+                data: List[Dict[str, Any]], batch_size: int = 1000):
+    """
+    Perform bulk insert operation.
+    
+    Args:
+        database: Target database name
+        table: Target table name
+        data: List of records to insert
+        batch_size: Number of records per batch
+    """
+    pass
+```
+
+[Back to the Table of Contents](#table-of-contents)
+
+## Error Handling
+
+### Exception Hierarchy
+
+```python
+class DatabaseError(Exception):
+    """Base class for database exceptions."""
+    pass
+
+class ConnectionError(DatabaseError):
+    """Error establishing database connection."""
+    pass
+
+class QueryError(DatabaseError):
+    """Error executing database query."""
+    pass
+
+class TransactionError(DatabaseError):
+    """Error during transaction processing."""
+    pass
+
+class ValidationError(DatabaseError):
+    """Error validating data or parameters."""
+    pass
+```
+
+### Error Handling Patterns
+
+#### Basic Error Handling
+
+```python
+try:
+    with connector.transaction():
+        connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+except ConnectionError:
+    # Handle connection issues
+    logging.error("Database connection failed")
+    raise
+except QueryError as e:
+    # Handle query execution errors
+    logging.error(f"Query failed: {e}")
+    raise
+except TransactionError as e:
+    # Handle transaction errors
+    logging.error(f"Transaction failed: {e}")
+    raise
+```
+
+#### Retry Pattern
+
+```python
+def retry_operation(max_retries: int = 3, delay: float = 1.0):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            retries = 0
+            while retries < max_retries:
+                try:
+                    return func(*args, **kwargs)
+                except ConnectionError:
+                    retries += 1
+                    if retries == max_retries:
+                        raise
+                    time.sleep(delay * (2 ** retries))  # Exponential backoff
+            return None
+        return wrapper
+    return decorator
+
+@retry_operation(max_retries=3)
+def execute_query(connector: DatabaseConnection, query: str):
+    return connector.execute("sales_db", query)
+```
+
+### Error Recovery
+
+```python
+class ErrorRecoveryHandler:
+    def __init__(self, connector: DatabaseConnection):
+        self.connector = connector
+        
+    def handle_connection_error(self, error: ConnectionError):
+        """Handle connection errors with reconnection attempt."""
+        logging.error(f"Connection error: {error}")
+        try:
+            self.connector.close()
+            self.connector.connect_to_database()
+        except Exception as e:
+            logging.error(f"Reconnection failed: {e}")
+            raise
+            
+    def handle_transaction_error(self, error: TransactionError):
+        """Handle transaction errors with cleanup."""
+        logging.error(f"Transaction error: {error}")
+        try:
+            self.connector.rollback()
+            self._cleanup_incomplete_transaction()
+        except Exception as e:
+            logging.error(f"Transaction cleanup failed: {e}")
+            raise
+            
+    def _cleanup_incomplete_transaction(self):
+        """Perform cleanup after failed transaction."""
+        # Implementation specific to your needs
+        pass
+```
+
+### Error Logging and Monitoring
+
+```python
+class DatabaseErrorMonitor:
+    def __init__(self):
+        self.error_counts = defaultdict(int)
+        self.error_details = []
+        
+    def record_error(self, error: DatabaseError):
+        """Record error for monitoring."""
+        error_type = type(error).__name__
+        self.error_counts[error_type] += 1
+        
+        self.error_details.append({
+            'type': error_type,
+            'message': str(error),
+            'timestamp': datetime.now(),
+            'traceback': traceback.format_exc()
+        })
+        
+    def get_error_statistics(self) -> Dict[str, Any]:
+        """Get error statistics."""
+        return {
+            'error_counts': dict(self.error_counts),
+            'total_errors': sum(self.error_counts.values()),
+            'recent_errors': self.error_details[-10:]  # Last 10 errors
+        }
+
+# Usage
+monitor = DatabaseErrorMonitor()
+
+try:
+    connector.execute("sales_db", "INSERT INTO orders VALUES (1, 100)")
+except DatabaseError as e:
+    monitor.record_error(e)
+    raise
+```
+
+[Back to the Table of Contents](#table-of-contents)
+
