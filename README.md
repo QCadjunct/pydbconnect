@@ -1979,8 +1979,7 @@ SOFTWARE.
 - 👨‍💻 Marko
 - 👨‍💻 Deepak
 
-
-### Special Thanks for a little help from my friends (Joe Cocker https://www.dailymotion.com/video/x2p98e5)
+### Special Thanks for a little help from my friends (Joe Cocker <https://www.dailymotion.com/video/x2p98e5>V)
 
 - 🙏 The DuckDB team for inspiration on multi-database operations
 - 🙏 The SQLAlchemy community for query building patterns

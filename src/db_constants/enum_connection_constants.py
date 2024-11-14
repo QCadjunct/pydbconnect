@@ -93,16 +93,16 @@ class TargetDatabaseEngine(Enum):
         """
         try:
             from . import templates
-            engine_config = getattr(templates, self.value)
+            engine_config = getattr(templates, self.target_database_engine_name)
             
             handler_class = engine_config.get('ADMIN_HANDLER')
             if not handler_class:
-                raise ValueError(f"No admin handler configured for {self.value}")
+                raise ValueError(f"No admin handler configured for {self.target_database_engine_name}")
                 
             return handler_class()
             
         except Exception as e:
-            raise ValueError(f"Error creating admin handler for {self.value}: {str(e)}")
+            raise ValueError(f"Error creating admin handler for {self.target_database_engine_name}: {str(e)}")
 
 class DatabaseAdminTemplate(ABC):
     """Abstract base class for database administration."""
