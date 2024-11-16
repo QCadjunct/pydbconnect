@@ -15,7 +15,7 @@ class DatabaseInfo:
     is_active: bool = True
     attached_at: datetime = datetime.now()
 
-class MultiDatabaseConnector:
+    
     """
     Multi-database connector supporting different database types.
     Similar to DuckDB's ATTACH functionality.

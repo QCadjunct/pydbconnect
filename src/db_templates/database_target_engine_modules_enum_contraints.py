@@ -2,6 +2,8 @@ from enum import Enum
 from typing import Dict, Any, Type
 from abc import ABC, abstractmethod
 import importlib
+from .database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3 as template
+
 
 class TargetDatabaseEngine(Enum):
     """Database engines supported by pydbconnect."""
@@ -33,8 +35,8 @@ class TargetDatabaseEngine(Enum):
         Check if engine requires username/password authentication.
         Gets value from engine configuration.
         """
-        from . import templates
-        engine_config = getattr(templates, self.target_database_engine_name)
+ 
+        engine_config = getattr(template, self.target_database_engine_name)
         return engine_config.get('REQUIRES_CREDENTIALS', False)
 
     @property
@@ -44,7 +46,7 @@ class TargetDatabaseEngine(Enum):
         Gets value from engine configuration.
         """
         from . import templates
-        engine_config = getattr(templates, self.target_database_engine_name)
+        engine_config = getattr(template, self.target_database_engine_name)
         return engine_config.get('FORMAT_CONNECTION_STRING', {}).get('IS_DSN_NAME_SUPPORTED', False)
 
     @property
@@ -53,14 +55,13 @@ class TargetDatabaseEngine(Enum):
         Get the Python module name required for this engine.
         Gets value from engine configuration.
         """
-        from . import templates
-        engine_config = getattr(templates, self.target_database_engine_name)
+        engine_config = getattr(template, self.target_database_engine_name)
         return engine_config.get('CRUDBASIC', {}).get('IMPORT', '')
 
     def load_engine_config(self) -> Dict[str, Any]:
         """Load complete engine configuration."""
-        from . import templates
-        return getattr(templates, self.target_database_engine_name)
+
+        return getattr(template, self.target_database_engine_name)
 
     def get_placeholder(self) -> str:
         """Get SQL parameter placeholder for this engine."""
@@ -92,8 +93,7 @@ class TargetDatabaseEngine(Enum):
         Get appropriate admin handler based on engine configuration.
         """
         try:
-            from . import templates
-            engine_config = getattr(templates, self.target_database_engine_name)
+            engine_config = getattr(template, self.target_database_engine_name)
             
             handler_class = engine_config.get('ADMIN_HANDLER')
             if not handler_class:

@@ -8,7 +8,8 @@ from pandas import DataFrame
 from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
-from .db_constants.enum_connection_constants import TargetDatabaseEngine, TargetDatabaseConnectionStringOption
+from .db_templates.database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3,DUCKDB as template
+from .db_templates.database_target_engine_modules_enum_contraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption
 
 class DatabaseError(Exception):
     """Base exception for database operations"""
@@ -31,7 +32,7 @@ class DatabaseConnection:
     def __init__(self, engine_type: TargetDatabaseEngine, 
                  connect_option: TargetDatabaseConnectionStringOption):
         """Initialize database connection with specified engine and options."""
-        self.engine_type = engine_type
+        self.target_database_engine_name = engine_type.name
         self.connect_option = connect_option
         self.engine_config = self._load_engine_config()
         self._connection = None
@@ -41,10 +42,9 @@ class DatabaseConnection:
     def _load_engine_config(self) -> Dict[str, Any]:
         """Load engine-specific configuration."""
         try:
-            from . import templates
-            return getattr(templates, self.engine_type.value)
+             return getattr(template, self.target_database_engine_name)
         except AttributeError as e:
-            raise DatabaseError(f"Unsupported database engine: {self.engine_type.value}") from e
+            raise DatabaseError(f"Unsupported database engine: {self.target_database_engine_name}") from e
 
     def _load_env(self) -> None:
         """Load environment variables from .env file."""
@@ -269,7 +269,7 @@ class DatabaseConnection:
         """Backup database to specified path."""
         backup_command = self.engine_config.get('BACKUP_COMMAND', '').format(path=path)
         if not backup_command:
-            raise DatabaseError(f"Backup not supported for {self.engine_type.value}")
+            raise DatabaseError(f"Backup not supported for {self.target_database_engine_name}")
 
         with self._cursor() as cursor:
             cursor.execute(backup_command)
@@ -278,7 +278,7 @@ class DatabaseConnection:
         """Restore database from specified path."""
         restore_command = self.engine_config.get('RESTORE_COMMAND', '').format(path=path)
         if not restore_command:
-            raise DatabaseError(f"Restore not supported for {self.engine_type.value}")
+            raise DatabaseError(f"Restore not supported for {self.target_database_engine_name}")
 
         with self._cursor() as cursor:
             cursor.execute(restore_command)
