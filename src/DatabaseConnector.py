@@ -137,52 +137,61 @@ class DatabaseConnector(BaseDatabaseConnector):
     def close(self) -> None:
         """Explicitly close the database connection."""
         super().close()
+        
+    """
+    # Usage Example
+    def main():
+        # Create connection options
+        connection_options = TargetDatabaseConnectionStringOption(
+            server="localhost",
+            database="test_db",
+            username="user",
+            password="pass",
+            port=1433
+        )
 
-# Usage Example
-def main():
-    # Create connection options
-    connection_options = TargetDatabaseConnectionStringOption(
-        server="localhost",
-        database="test_db",
-        username="user",
-        password="pass",
-        port=1433
-    )
+        # Initialize database connector
+        with DatabaseConnector(TargetDatabaseEngine.MSSQL, TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd) as db:
+            try:
+                # Configure and establish connection
+                db.finalization_of_connection_parameters(
+                    timeout=30,
+                    encrypt=True
+                ).connect_to_database()
 
-    # Initialize database connector
-    with DatabaseConnector(TargetDatabaseEngine.MSSQL, TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd) as db:
-        try:
-            # Configure and establish connection
-            db.finalization_of_connection_parameters(
-                timeout=30,
-                encrypt=True
-            ).connect_to_database()
+                # Perform database operations
+                with db.transaction():
+                    # Insert data
+                    db.insert("users", {
+                        "name": "John Doe",
+                        "email": "john@example.com"
+                    })
 
-            # Perform database operations
-            with db.transaction():
-                # Insert data
-                db.insert("users", {
-                    "name": "John Doe",
-                    "email": "john@example.com"
-                })
+                    # Query data
+                    results_df = db.execute_sql_to_dataframe(
+                        "SELECT * FROM users WHERE name LIKE ?",
+                        index_col="id"
+                    )
+                    print("Results as DataFrame:")
+                    print(results_df)
 
-                # Query data
-                results_df = db.execute_sql_to_dataframe(
-                    "SELECT * FROM users WHERE name LIKE ?",
-                    index_col="id"
-                )
-                print("Results as DataFrame:")
-                print(results_df)
+                    # Pretty table output
+                    db.execute_sql_to_prettytable(
+                        "SELECT * FROM users ORDER BY name",
+                        is_print=True
+                    )
 
-                # Pretty table output
-                db.execute_sql_to_prettytable(
-                    "SELECT * FROM users ORDER BY name",
-                    is_print=True
-                )
-
-        except DatabaseError as e:
-            print(f"Database operation failed: {e}")
-            raise
-
+            except DatabaseError as e:
+                print(f"Database operation failed: {e}")
+                raise
+            except ConnectionError as e:
+                print(f"Connection failed: {e}")
+                raise
+            except Exception as e:
+                print(f"An error occurred: {e}")
+                raise
+            finally:
+                db.close()
+    """
 if __name__ == "__main__":
     main()

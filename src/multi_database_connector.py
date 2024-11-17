@@ -1,243 +1,395 @@
 # multi_database_connector.py
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
-from datetime import datetime
-import pyodbc
-import pandas as pd
+from getpass import getpass
+import logging
+from typing import Any, Dict, Optional, Union, List
 from contextlib import contextmanager
+import importlib
+import pandas as pd
+from pandas import DataFrame
+from prettytable import PrettyTable
+from pathlib import Path
+from datetime import datetime
+from dotenv import load_dotenv
+from dataclasses import dataclass
+from .base_database_connector import BaseDatabaseConnector, DatabaseError
+from .db_templates.database_target_engine_template_modules import (
+    MSSQL, MYSQL, POSTGRESQL, PSYCOPG2, SQLITE3, DUCKDB as template
+)
+from .db_templates.database_target_engine_modules_enum_contraints import (
+    TargetDatabaseEngine, TargetDatabaseConnectionStringOption
+)
 
 @dataclass
-class DatabaseInfo:
-    """Information about an attached database."""
+class DatabaseInstance:
+    """Information about an attached database instance."""
     name: str
-    connection_string: str
-    type: str
+    engine_type: TargetDatabaseEngine
+    connection_options: TargetDatabaseConnectionStringOption
     is_active: bool = True
     attached_at: datetime = datetime.now()
 
-    
+class MultiDatabaseConnector(BaseDatabaseConnector):
     """
     Multi-database connector supporting different database types.
-    Similar to DuckDB's ATTACH functionality.
+    Implements template-based connection management with multiple database support.
     """
     
     def __init__(self):
-        self.databases: Dict[str, DatabaseInfo] = {}
-        self.connections: Dict[str, pyodbc.Connection] = {}
-        self.active_database: Optional[str] = None
-        self._transaction_db: Optional[str] = None
-    
-    def attach(self, connection_string: str, name: str, db_type: str) -> None:
+        """Initialize multi-database connector."""
+        super().__init__()
+        self.instances: Dict[str, DatabaseInstance] = {}
+        self.connections: Dict[str, Any] = {}
+        self.active_instance: Optional[str] = None
+        self._transaction_instance: Optional[str] = None
+        self._logger = logging.getLogger(__name__)
+
+    def attach(self, 
+               name: str,
+               engine_type: TargetDatabaseEngine,
+               connect_option: TargetDatabaseConnectionStringOption) -> 'MultiDatabaseConnector':
         """
-        Attach a new database to the system.
+        Attach a new database instance using template configuration.
         
         Args:
-            connection_string: Database connection string
-            name: Alias for the database
-            db_type: Type of database (mssql, mysql, etc.)
+            name: Alias for the database instance
+            engine_type: Type of database engine
+            connect_option: Standardized connection options
+            
+        Returns:
+            Self for method chaining
         """
         try:
-            conn = pyodbc.connect(connection_string)
-            self.databases[name] = DatabaseInfo(
+            self.target_database_engine_name = engine_type.name
+            self.connect_option = connect_option
+            self.engine_config = self._load_engine_config()
+            
+            # Finalize connection parameters
+            self.finalization_of_connection_parameters()
+            
+            # Create connection using template
+            connection = self._create_database_connection()
+            
+            # Store instance information
+            self.instances[name] = DatabaseInstance(
                 name=name,
-                connection_string=connection_string,
-                type=db_type
+                engine_type=engine_type,
+                connection_options=connect_option
             )
-            self.connections[name] = conn
+            self.connections[name] = connection
             
-            if not self.active_database:
-                self.active_database = name
-                
-        except pyodbc.Error as e:
-            raise ConnectionError(f"Failed to attach database {name}: {str(e)}")
-
-    def use(self, database_name: str) -> None:
-        """Switch active database, similar to DuckDB's USE command."""
-        if database_name not in self.databases:
-            raise ValueError(f"Database {database_name} not attached")
-        self.active_database = database_name
-
-    @contextmanager
-    def transaction(self):
-        """
-        Transaction context manager supporting single-database writes.
-        Similar to DuckDB's transaction management.
-        """
-        if not self.active_database:
-            raise ValueError("No active database")
+            # Set as active if first instance
+            if not self.active_instance:
+                self.active_instance = name
+                self._connection = connection
             
-        conn = self.connections[self.active_database]
-        
-        try:
-            if self._transaction_db and self._transaction_db != self.active_database:
-                raise ValueError(
-                    f"Attempting to write to database {self.active_database} in a "
-                    f"transaction that has already modified database {self._transaction_db}"
-                )
-                
-            conn.autocommit = False
-            yield
-            conn.commit()
+            self._logger.info(f"Successfully attached database: {name}")
+            return self
             
         except Exception as e:
-            conn.rollback()
-            raise e
+            self._logger.error(f"Failed to attach database {name}: {str(e)}")
+            raise DatabaseError(f"Failed to attach database {name}: {str(e)}")
+
+    def _load_engine_config(self) -> Dict[str, Any]:
+        """Load engine-specific configuration from templates."""
+        try:
+            return getattr(template, self.target_database_engine_name)
+        except AttributeError as e:
+            raise DatabaseError(f"Unsupported database engine: {self.target_database_engine_name}")
+
+    def _create_database_connection(self) -> Any:
+        """Create database connection using template configuration."""
+        try:
+            module_name = self.engine_config['MODULE']
+            module = importlib.import_module(module_name)
+            return module.connect(self._connection_string)
+        except Exception as e:
+            raise DatabaseError(f"Failed to create database connection: {str(e)}")
+
+    def use(self, instance_name: str) -> 'MultiDatabaseConnector':
+        """
+        Switch active database instance.
+        
+        Args:
+            instance_name: Name of the instance to make active
+            
+        Returns:
+            Self for method chaining
+        """
+        if instance_name not in self.instances:
+            raise DatabaseError(f"Instance {instance_name} not attached")
+        
+        self.active_instance = instance_name
+        self._connection = self.connections[instance_name]
+        instance = self.instances[instance_name]
+        self.target_database_engine_name = instance.engine_type.name
+        self.connect_option = instance.connection_options
+        
+        self._logger.info(f"Switched to database instance: {instance_name}")
+        return self
+
+    @contextmanager
+    def transaction(self, instance_name: Optional[str] = None):
+        """
+        Transaction context manager for single-instance operations.
+        
+        Args:
+            instance_name: Optional instance name, uses active instance if not specified
+        """
+        target_instance = instance_name or self.active_instance
+        if not target_instance:
+            raise DatabaseError("No active database instance")
+            
+        if target_instance not in self.connections:
+            raise DatabaseError(f"Instance {target_instance} not attached")
+            
+        connection = self.connections[target_instance]
+        
+        try:
+            if self._transaction_instance and self._transaction_instance != target_instance:
+                raise DatabaseError(
+                    f"Cannot start transaction on {target_instance} while transaction "
+                    f"active on {self._transaction_instance}"
+                )
+                
+            self._transaction_instance = target_instance
+            connection.autocommit = False
+            self._logger.debug(f"Starting transaction on instance: {target_instance}")
+            yield
+            connection.commit()
+            self._logger.debug(f"Committed transaction on instance: {target_instance}")
+            
+        except Exception as e:
+            self._logger.error(f"Transaction failed on instance {target_instance}: {str(e)}")
+            connection.rollback()
+            raise DatabaseError(f"Transaction failed: {str(e)}")
             
         finally:
-            conn.autocommit = True
-            self._transaction_db = None
+            connection.autocommit = True
+            self._transaction_instance = None
 
     def copy_table(self, 
-                   source_db: str, 
-                   target_db: str, 
+                   source_instance: str, 
+                   target_instance: str, 
                    table_name: str, 
                    batch_size: int = 1000) -> None:
         """
-        Copy table between databases, similar to DuckDB's CREATE TABLE AS.
+        Copy table between database instances.
         
         Args:
-            source_db: Source database name
-            target_db: Target database name
+            source_instance: Source instance name
+            target_instance: Target instance name
             table_name: Table to copy
             batch_size: Number of rows to copy at once
         """
-        # Get schema from source
-        schema_query = f"""
-            SELECT COLUMN_NAME, DATA_TYPE 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_NAME = '{table_name}'
-        """
-        
-        schema_df = self.query(source_db, schema_query)
-        
-        # Create table in target
-        columns = [f"{row['COLUMN_NAME']} {row['DATA_TYPE']}" 
-                  for _, row in schema_df.iterrows()]
-        create_query = f"CREATE TABLE {table_name} ({', '.join(columns)})"
-        
-        self.execute(target_db, create_query)
-        
-        # Copy data in batches
-        offset = 0
-        while True:
-            data_query = f"""
-                SELECT * FROM {table_name} 
-                ORDER BY (SELECT NULL) 
-                OFFSET {offset} ROWS FETCH NEXT {batch_size} ROWS ONLY
+        try:
+            # Get schema from source
+            schema_query = f"""
+                SELECT COLUMN_NAME, DATA_TYPE 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = '{table_name}'
             """
             
-            batch_df = self.query(source_db, data_query)
-            if batch_df.empty:
-                break
+            schema_df = self.query(schema_query, source_instance)
+            
+            # Create table in target
+            columns = [f"{row['COLUMN_NAME']} {row['DATA_TYPE']}" 
+                      for _, row in schema_df.iterrows()]
+            create_query = f"CREATE TABLE {table_name} ({', '.join(columns)})"
+            
+            self.execute(create_query, target_instance)
+            
+            # Copy data in batches
+            offset = 0
+            total_rows = 0
+            
+            while True:
+                data_query = f"""
+                    SELECT * FROM {table_name} 
+                    ORDER BY (SELECT NULL) 
+                    OFFSET {offset} ROWS FETCH NEXT {batch_size} ROWS ONLY
+                """
                 
-            # Insert batch
-            placeholders = ','.join(['?'] * len(batch_df.columns))
-            insert_query = f"INSERT INTO {table_name} VALUES ({placeholders})"
+                batch_df = self.query(data_query, source_instance)
+                if batch_df.empty:
+                    break
+                    
+                # Insert batch
+                placeholders = ','.join(['?'] * len(batch_df.columns))
+                insert_query = f"INSERT INTO {table_name} VALUES ({placeholders})"
+                
+                self.executemany(insert_query, batch_df.values.tolist(), target_instance)
+                
+                offset += batch_size
+                total_rows += len(batch_df)
+                self._logger.info(f"Copied {total_rows} rows to {target_instance}.{table_name}")
             
-            self.executemany(target_db, insert_query, batch_df.values.tolist())
-            offset += batch_size
-
-    def query(self, database_name: str, query: str) -> pd.DataFrame:
-        """Execute query and return results as DataFrame."""
-        if database_name not in self.connections:
-            raise ValueError(f"Database {database_name} not attached")
+            self._logger.info(
+                f"Successfully copied table {table_name} from {source_instance} to {target_instance}"
+            )
             
-        conn = self.connections[database_name]
-        return pd.read_sql(query, conn)
+        except Exception as e:
+            self._logger.error(f"Failed to copy table {table_name}: {str(e)}")
+            raise DatabaseError(f"Failed to copy table: {str(e)}")
 
-    def execute(self, database_name: str, query: str) -> None:
-        """Execute query without returning results."""
-        if database_name not in self.connections:
-            raise ValueError(f"Database {database_name} not attached")
+    def query(self, query: str, instance_name: Optional[str] = None) -> pd.DataFrame:
+        """
+        Execute query and return results as DataFrame.
+        
+        Args:
+            query: SQL query to execute
+            instance_name: Optional instance name, uses active instance if not specified
             
-        conn = self.connections[database_name]
-        with conn.cursor() as cursor:
-            cursor.execute(query)
-
-    def executemany(self, database_name: str, query: str, 
-                    parameters: List[Any]) -> None:
-        """Execute query with multiple parameter sets."""
-        if database_name not in self.connections:
-            raise ValueError(f"Database {database_name} not attached")
+        Returns:
+            DataFrame containing query results
+        """
+        target = instance_name or self.active_instance
+        if not target:
+            raise DatabaseError("No active database instance")
+        
+        if target not in self.connections:
+            raise DatabaseError(f"Instance {target} not attached")
             
-        conn = self.connections[database_name]
-        with conn.cursor() as cursor:
-            cursor.executemany(query, parameters)
+        try:
+            return pd.read_sql(query, self.connections[target])
+        except Exception as e:
+            self._logger.error(f"Query failed on instance {target}: {str(e)}")
+            raise DatabaseError(f"Query failed: {str(e)}")
 
-    def get_database_info(self) -> pd.DataFrame:
-        """Get information about attached databases."""
+    def execute(self, query: str, instance_name: Optional[str] = None) -> None:
+        """
+        Execute query without returning results.
+        
+        Args:
+            query: SQL query to execute
+            instance_name: Optional instance name, uses active instance if not specified
+        """
+        target = instance_name or self.active_instance
+        if not target:
+            raise DatabaseError("No active database instance")
+        
+        if target not in self.connections:
+            raise DatabaseError(f"Instance {target} not attached")
+            
+        try:
+            with self.connections[target].cursor() as cursor:
+                cursor.execute(query)
+                self.connections[target].commit()
+            self._logger.debug(f"Successfully executed query on instance: {target}")
+        except Exception as e:
+            self._logger.error(f"Query execution failed on instance {target}: {str(e)}")
+            raise DatabaseError(f"Query execution failed: {str(e)}")
+
+    def executemany(self, query: str, parameters: List[Any],
+                    instance_name: Optional[str] = None) -> None:
+        """
+        Execute query with multiple parameter sets.
+        
+        Args:
+            query: SQL query to execute
+            parameters: List of parameter sets
+            instance_name: Optional instance name, uses active instance if not specified
+        """
+        target = instance_name or self.active_instance
+        if not target:
+            raise DatabaseError("No active database instance")
+        
+        if target not in self.connections:
+            raise DatabaseError(f"Instance {target} not attached")
+            
+        try:
+            with self.connections[target].cursor() as cursor:
+                cursor.executemany(query, parameters)
+                self.connections[target].commit()
+            self._logger.debug(
+                f"Successfully executed batch query on instance: {target}"
+            )
+        except Exception as e:
+            self._logger.error(
+                f"Batch query execution failed on instance {target}: {str(e)}"
+            )
+            raise DatabaseError(f"Batch query execution failed: {str(e)}")
+
+    def get_instances_info(self) -> pd.DataFrame:
+        """
+        Get information about attached database instances.
+        
+        Returns:
+            DataFrame containing instance information
+        """
         return pd.DataFrame([
             {
-                'database_name': db.name,
-                'type': db.type,
-                'is_active': db.is_active,
-                'attached_at': db.attached_at
+                'instance_name': inst.name,
+                'engine_type': inst.engine_type.name,
+                'is_active': inst.is_active,
+                'attached_at': inst.attached_at
             }
-            for db in self.databases.values()
+            for inst in self.instances.values()
         ])
 
     def close(self) -> None:
         """Close all database connections."""
-        for conn in self.connections.values():
-            conn.close()
-        self.connections.clear()
-        self.databases.clear()
-        self.active_database = None
+        try:
+            for name, conn in self.connections.items():
+                try:
+                    conn.close()
+                    self._logger.debug(f"Closed connection to instance: {name}")
+                except Exception as e:
+                    self._logger.warning(f"Error closing connection to {name}: {str(e)}")
+                    
+            self.connections.clear()
+            self.instances.clear()
+            self.active_instance = None
+            self._connection = None
+            self._logger.info("Closed all database connections")
+            
+        except Exception as e:
+            self._logger.error(f"Error during connection cleanup: {str(e)}")
+            raise DatabaseError(f"Failed to close connections: {str(e)}")
 
 # Usage Example
 def main():
-    # Create connector
-    mdb = MultiDatabaseConnector()
+    # Initialize multi-database connector
+    multi_db = MultiDatabaseConnector()
     
     try:
-        # Attach databases
-        mdb.attach(
-            "DRIVER={ODBC Driver 17 for SQL Server};SERVER=server1;DATABASE=db1;UID=user;PWD=pass",
+        # Attach SQL Server database
+        multi_db.attach(
             "mssql_db",
-            "mssql"
-        )
-        
-        mdb.attach(
-            "DRIVER={MySQL ODBC 8.0 Driver};SERVER=server2;DATABASE=db2;UID=user;PWD=pass",
+            TargetDatabaseEngine.MSSQL,
+            TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd
+        ).attach(
             "mysql_db",
-            "mysql"
-        )
+            TargetDatabaseEngine.MYSQL,
+            TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd
+        ).use("mssql_db")
         
-        # Use specific database
-        mdb.use("mssql_db")
-        
-        # Transaction example
-        with mdb.transaction():
-            # Create new table
-            mdb.execute("mssql_db", """
-                CREATE TABLE new_table (
+        # Perform operations
+        with multi_db.transaction():
+            multi_db.execute("""
+                CREATE TABLE example (
                     id INT PRIMARY KEY,
                     name VARCHAR(100)
                 )
             """)
             
-            # Insert data
-            mdb.execute("mssql_db", """
-                INSERT INTO new_table (id, name) 
-                VALUES (1, 'Test')
+            multi_db.execute("""
+                INSERT INTO example (id, name) 
+                VALUES (1, 'Test Data')
             """)
         
-        # Copy table between databases
-        mdb.copy_table("mysql_db", "mssql_db", "users")
+        # Query data
+        results = multi_db.query("SELECT * FROM example")
+        print("Query Results:", results)
         
-        # Query across databases
-        results = mdb.query("mssql_db", """
-            SELECT m.name, y.email
-            FROM mssql_db.dbo.users m
-            JOIN mysql_db.dbo.profiles y ON m.id = y.user_id
-        """)
+        # Copy table between instances
+        multi_db.copy_table("mssql_db", "mysql_db", "example")
         
-        print(results)
+    except DatabaseError as e:
+        print(f"Database operation failed: {e}")
+        raise
         
     finally:
-        mdb.close()
+        multi_db.close()
 
-    """    
-    if __name__ == "__main__":
-        main()
-    """
+if __name__ == "__main__":
+    main()
