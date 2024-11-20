@@ -8,6 +8,7 @@ from pandas import DataFrame
 from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
+from .db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, ConnectionError
 from .db_templates.database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3,DUCKDB as template
 from .db_templates.database_target_engine_modules_enum_contraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption
 
@@ -193,5 +194,5 @@ class DatabaseConnector(BaseDatabaseConnector):
             finally:
                 db.close()
     """
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#    main()

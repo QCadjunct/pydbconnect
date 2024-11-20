@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
 from dataclasses import dataclass
-from .base_database_connector import BaseDatabaseConnector, DatabaseError
+from .db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError
 from .db_templates.database_target_engine_template_modules import (
     MSSQL, MYSQL, POSTGRESQL, PSYCOPG2, SQLITE3, DUCKDB as template
 )

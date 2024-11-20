@@ -1,6 +1,7 @@
 # 🔌 DatabaseConnector Documentation
 
 ## Table of Contents
+
 1. [🎯 Overview](#overview)
 2. [🔗 Dependencies](#dependencies)
 3. [🏗️ Class Architecture](#architecture)
@@ -15,11 +16,13 @@
 7. [🔍 Best Practices](#best-practices)
 
 ## 🎯 Overview <a name="overview"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 The `DatabaseConnector` class implements the `BaseDatabaseConnector` abstract base class, providing a concrete implementation for database operations with support for multiple database engines. It uses a fluent interface pattern for method chaining and configuration.
 
 ## 🔗 Dependencies <a name="dependencies"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ```python
@@ -40,6 +43,7 @@ from .db_templates.database_target_engine_modules_enum_contraints import (
 ```
 
 ## 🏗️ Class Architecture <a name="architecture"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 The DatabaseConnector extends BaseDatabaseConnector with specific engine support:
@@ -53,12 +57,14 @@ class DatabaseConnector(BaseDatabaseConnector):
 ```
 
 ### Key Features:
+
 - 🔐 Template-based engine configuration
 - 📊 Fluent interface pattern
 - 🔄 Method chaining support
 - 🛡️ Error handling
 
 ## 🛠️ Implementation Details <a name="implementation"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ### Initialization <a name="initialization"></a>
@@ -74,6 +80,7 @@ def __init__(self, engine_type: TargetDatabaseEngine,
 ```
 
 #### Engine Configuration
+
 ```python
 def _load_engine_config(self) -> Dict[str, Any]:
     """Load engine-specific configuration."""
@@ -86,6 +93,7 @@ def _load_engine_config(self) -> Dict[str, Any]:
 ### Core Methods <a name="core-methods"></a>
 
 #### Connection Establishment
+
 ```python
 def connect_to_database(self) -> 'DatabaseConnector':
     """Establish database connection."""
@@ -101,6 +109,7 @@ def connect_to_database(self) -> 'DatabaseConnector':
 ### Query Operations <a name="query-operations"></a>
 
 #### DataFrame Queries
+
 ```python
 def execute_sql_to_dataframe(self, sql: str, 
                            index_col: Optional[str] = None) -> pd.DataFrame:
@@ -109,6 +118,7 @@ def execute_sql_to_dataframe(self, sql: str,
 ```
 
 #### Formatted Table Output
+
 ```python
 def execute_sql_to_prettytable(self, sql: str, 
                               is_print: bool = False) -> Optional[PrettyTable]:
@@ -121,6 +131,7 @@ def execute_sql_to_prettytable(self, sql: str,
 All CRUD operations inherit from BaseDatabaseConnector with type-safe overrides:
 
 #### Insert Operations
+
 ```python
 def insert(self, table: str, data: Dict[str, Any]) -> int:
     """Insert single record and return inserted id."""
@@ -132,6 +143,7 @@ def bulk_insert(self, table: str, records: List[Dict[str, Any]]) -> None:
 ```
 
 #### Update and Delete
+
 ```python
 def update(self, table: str, data: Dict[str, Any], 
            where: Dict[str, Any]) -> int:
@@ -158,9 +170,11 @@ def begin_transaction(self) -> None:
 ```
 
 ## 📊 Usage Examples <a name="usage"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ### Basic Connection
+
 ```python
 with DatabaseConnector(
     TargetDatabaseEngine.MSSQL, 
@@ -173,6 +187,7 @@ with DatabaseConnector(
 ```
 
 ### Data Operations
+
 ```python
 # Insert Data
 db.insert("users", {
@@ -194,6 +209,7 @@ db.execute_sql_to_prettytable(
 ```
 
 ## ⚠️ Error Handling <a name="error-handling"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ```python
