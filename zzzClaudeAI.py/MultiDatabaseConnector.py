@@ -13,7 +13,7 @@ from src.db_templates.database_target_engine_template_modules import (
     MSSQL, MYSQL, POSTGRESQL, PSYCOPG2, SQLITE3, DUCKDB as template
 )
 from src.db_templates.database_target_engine_modules_enum_contraints import (
-    TargetDatabaseEngine, TargetDatabaseConnectionStringOption
+    TargetDatabaseEngine, TargetDatabaseConnectionStringOption,ChangeDefaultUsernameAndPassword
 )
 from src.utils import preload_default_parameters
 
@@ -28,43 +28,44 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
         self._transaction_instance: Optional[str] = None
         self._logger = logging.getLogger(__name__)
 
-    def _load_engine_config(self) -> Dict[str, Any]:
+    def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
         """Load engine-specific configuration."""
         try:
             return getattr(template, self.target_database_engine_name)
         except AttributeError as e:
             raise DatabaseError(f"Unsupported database engine: {self.target_database_engine_name}") from e
 
-    def attach(self, database_alias: str,
-               engine_type: TargetDatabaseEngine,
-               connect_option: TargetDatabaseConnectionStringOption) -> 'MultiDatabaseConnector':
+    def attach(self, database_alias_name: str,
+               target_database_engine_type: TargetDatabaseEngine,
+               target_database_engine_connect_option: TargetDatabaseConnectionStringOption) -> 'MultiDatabaseConnector':
         """
         First step in connection chain.
         Mirrors DatabaseConnector's initialization pattern.
         """
         try:
-            self.target_database_engine_name = engine_type.name
-            self.connect_option = connect_option
-            self.engine_config = self._load_engine_config()
+            self.target_database_engine_name = target_database_engine_type.name
+            self.target_database_engine_connect_option = target_database_engine_connect_option
+            self.target_database_engine_template_config = self._load_target_database_engine_template_config()
             
             # Store instance configuration
-            self.instances[database_alias] = {
-                'name': database_alias,
-                'engine_type': engine_type,
-                'connect_option': connect_option,
-                'engine_config': self.engine_config,
+            self.instances[database_alias_name] = {
+                'database_alias_name': database_alias_name,
+                'target_database_engine_type': target_database_engine_type,
+                'target_database_engine_connect_option': target_database_engine_connect_option,
+                'target_database_engine_template_config': self.target_database_engine_template_config,
+                'finalized_connection_parameters': self.finalization_of_connection_parameters,
                 'is_active': True,
                 'attached_at': datetime.now(),
                 'deattached_at': None # At disconnect (detachment) datetime.now(),
             }
             
             if not self.active_instance:
-                self.active_instance = database_alias
+                self.active_instance = database_alias_name
             
             return self
             
         except Exception as e:
-            raise DatabaseError(f"Failed to attach database {database_alias}: {str(e)}")
+            raise DatabaseError(f"Failed to attach database {database_alias_name}: {str(e)}")
 
     def get_default_params(self) -> Dict[str, Any]:
         """Get default parameters from template."""
@@ -72,14 +73,14 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
             raise DatabaseError("No active instance")
             
         instance = self.instances[self.active_instance]
-        engine_name = instance['engine_type'].name
+        target_database_engine_name = instance['target_database_engine_type'].name
         
         if self.connect_option.uses_dsn:
-            return load_dsn_parameter_keys_dict(engine_name, 
-                {engine_name: self.engine_config[engine_name]})
+            return load_dsn_parameter_keys_dict(self.target_database_engine_name, 
+                {target_database_engine_name: self.target_database_engine_template_config[self.target_database_engine_name]})
         else:
-            return load_default_parameter_keys_dict(engine_name,
-                {engine_name: self.engine_config[engine_name]})
+            return load_default_parameter_keys_dict(self.target_database_engine_name,
+                {target_database_engine_name: self.target_database_engine_template_config[self.target_database_engine_name]})
 
     @preload_default_parameters(get_default_params)
     def finalization_of_connection_parameters(self, **params) -> 'MultiDatabaseConnector':
@@ -108,10 +109,10 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
             
         try:
             instance = self.instances[self.active_instance]
-            engine_name = instance['engine_type'].name
+            self.target_database_engine_name = instance['target_database_engine_type'].name
             
             # Use template's connection creator
-            connection_creator = self.engine_config[engine_name]['CREATE_DATABASE_CONNECTION'][
+            connection_creator = self.target_database_engine_template_config[self.target_database_engine_name]['CREATE_DATABASE_CONNECTION'][
                 'LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING'
             ]
             connection = connection_creator(self._connection_string)()
@@ -124,26 +125,26 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
         except Exception as e:
             raise ConnectionError(f"Failed to connect to database: {str(e)}")
 
-    def use(self, database_alias: str) -> 'MultiDatabaseConnector':
+    def use(self, database_alias_name: str) -> 'MultiDatabaseConnector':
         """Switch active database instance."""
-        if database_alias not in self.instances:
-            raise DatabaseError(f"Instance {database_alias} not attached")
+        if database_alias_name not in self.instances:
+            raise DatabaseError(f"Instance {database_alias_name} not attached")
             
-        self.active_instance = database_alias
-        if database_alias in self.connections:
-            self._connection = self.connections[database_alias]
+        self.active_instance = database_alias_name
+        if database_alias_name in self.connections:
+            self._connection = self.connections[database_alias_name]
         
         # Reset connection state
-        self.target_database_engine_name = self.instances[database_alias]['engine_type'].name
-        self.connect_option = self.instances[database_alias]['connect_option']
-        self.engine_config = self.instances[database_alias]['engine_config']
+        self.target_database_engine_name = self.instances[database_alias_name]['target_database_engine_type'].name
+        self.connect_option = self.instances[database_alias_name]['connect_option']
+        self.engine_config = self.instances[database_alias_name]['target_database_engine_template_config']
         
         return self
 
     @contextmanager
-    def transaction(self, database_alias: Optional[str] = None):
+    def transaction(self, database_alias_name: Optional[str] = None):
         """Transaction context manager for single-instance operations."""
-        target = database_alias or self.active_instance
+        target = database_alias_name or self.active_instance
         if not target:
             raise DatabaseError("No active database instance")
             
@@ -192,64 +193,64 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.close()
     
-    def detach(self, database_alias: str) -> 'MultiDatabaseConnector':
+    def detach(self, database_alias_name: str) -> 'MultiDatabaseConnector':
         """Detach database instance and record timestamp."""
     
-        if database_alias not in self.instances:
-            raise DatabaseError(f"Instance {database_alias} not attached")
+        if database_alias_name not in self.instances:
+            raise DatabaseError(f"Instance {database_alias_name} not attached")
             
         try:
             # Close connection if exists
-            if database_alias in self.connections:
-                self.connections[database_alias].close()
-                del self.connections[database_alias]
+            if database_alias_name in self.connections:
+                self.connections[database_alias_name].close()
+                del self.connections[database_alias_name]
                 
             # Update instance state
-            self.instances[database_alias]['is_active'] = False
-            self.instances[database_alias]['deattached_at'] = datetime.now()
+            self.instances[database_alias_name]['is_active'] = False
+            self.instances[database_alias_name]['deattached_at'] = datetime.now()
             
             # Reset active instance if needed
-            if self.active_instance == database_alias:
+            if self.active_instance == database_alias_name:
                 self.active_instance = next(
                     (name for name, inst in self.instances.items() 
-                    if inst['is_active'] and name != database_alias), 
+                    if inst['is_active'] and name != database_alias_name), 
                     None
                 )
             
-            self._logger.info(f"Successfully detached database: {database_alias}")
+            self._logger.info(f"Successfully detached database: {database_alias_name}")
             return self
             
         except Exception as e:
-            raise DatabaseError(f"Failed to detach database {database_alias}: {str(e)}")
+            raise DatabaseError(f"Failed to detach database {database_alias_name}: {str(e)}")
 
-    def get_instance_lifecycle(self, database_alias: str) -> Dict[str, Any]:
+    def get_instance_lifecycle(self, database_alias_name: str) -> Dict[str, Any]:
         """Get instance lifecycle information."""
-        if database_alias not in self.instances:
-            raise DatabaseError(f"Instance {database_alias} not found")
+        if database_alias_name not in self.instances:
+            raise DatabaseError(f"Instance {database_alias_name} not found")
             
-        instance = self.instances[database_alias]
+        instance = self.instances[database_alias_name]
         return {
-            'name': instance['name'],
-            'engine_type': instance['engine_type'].name,
+            'database_alias_name': instance['database_alias_name'],
+            'engine_type': instance['target_database_engine_type'].name,
             'is_active': instance['is_active'],
             'attached_at': instance['attached_at'],
             'deattached_at': instance['deattached_at'],
-            'connection_status': database_alias in self.connections,
-            'is_current': self.active_instance == database_alias
+            'connection_status': database_alias_name in self.connections,
+            'is_current': self.active_instance == database_alias_name
         }
 
-    def get_all_instances_status(self) -> pd.DataFrame:
+    def get_all_instances_status(self) -> pd.DataFrame: # PAH
         """Get status of all instances as DataFrame."""
         status_data = []
-        for alias, instance in self.instances.items():
+        for database_alias_name, instance in self.instances.items():
             status_data.append({
-                'instance_name': alias,
-                'engine_type': instance['engine_type'].name,
+                'instance_name': database_alias_name,
+                'target_database_engine_type': instance['target_database_engine_type'].name,
                 'is_active': instance['is_active'],
                 'attached_at': instance['attached_at'],
                 'deattached_at': instance['deattached_at'],
-                'connection_status': alias in self.connections,
-                'is_current': self.active_instance == alias
+                'connection_status': database_alias_name in self.connections,
+                'is_current': self.active_instance == database_alias_name
             })
         return pd.DataFrame(status_data)
 
@@ -257,14 +258,14 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
         """Close all database connections with proper lifecycle recording."""
         try:
             current_time = datetime.now()
-            for alias in list(self.connections.keys()):
+            for database_alias_name in list(self.connections.keys()):
                 try:
-                    self.connections[alias].close()
-                    self.instances[alias]['is_active'] = False
-                    self.instances[alias]['deattached_at'] = current_time
-                    self._logger.debug(f"Closed connection to instance: {alias}")
+                    self.connections[database_alias_name].close()
+                    self.instances[database_alias_name]['is_active'] = False
+                    self.instances[database_alias_name]['deattached_at'] = current_time
+                    self._logger.debug(f"Closed connection to instance: {database_alias_name}")
                 except Exception as e:
-                    self._logger.warning(f"Error closing connection to {alias}: {str(e)}")
+                    self._logger.warning(f"Error closing connection to {database_alias_name}: {str(e)}")
                     
             self.connections.clear()
             self.active_instance = None
@@ -286,7 +287,7 @@ def execute_query(self, query: str, instance_name: Optional[str] = None) -> pd.D
             
         try:
             # Get placeholder from template
-            placeholder = self.instances[target]['engine_config'][self.instances[target]['engine_type'].name][
+            placeholder = self.instances[target]['target_database_engine_template_config'][self.instances[target]['engine_type'].name][
                 'CRUDBASIC']['PARAMETER_PLACEHOLDER']
             
             return pd.read_sql(query.replace('?', placeholder), self.connections[target])
@@ -305,7 +306,7 @@ def execute_many(self, query: str, parameters: List[Any],
         raise DatabaseError(f"Instance {target} not attached")
         
     try:
-        placeholder = self.instances[target]['engine_config'][self.instances[target]['engine_type'].name][
+        placeholder = self.instances[target]['target_database_engine_template_config'][self.instances[target]['engine_type'].name][
             'CRUDBASIC']['PARAMETER_PLACEHOLDER']
         
         with self.connections[target].cursor() as cursor:
@@ -325,7 +326,7 @@ def copy_table(self, source_instance: str, target_instance: str,
         
     try:
         # Get schema using template's system queries
-        source_config = self.instances[source_instance]['engine_config']
+        source_config = self.instances[source_instance]['target_database_engine_template_config']
         schema_query = source_config.get('INFORMATION_SCHEMA_QUERY', 
             """SELECT COLUMN_NAME, DATA_TYPE 
                 FROM INFORMATION_SCHEMA.COLUMNS 
@@ -360,7 +361,7 @@ def copy_table(self, source_instance: str, target_instance: str,
                 break
             
             # Insert using target's placeholder style
-            target_config = self.instances[target_instance]['engine_config']
+            target_config = self.instances[target_instance]['target_database_engine_template_config']
             placeholder = target_config[self.instances[target_instance]['engine_type'].name][
                 'CRUDBASIC']['PARAMETER_PLACEHOLDER']
             
@@ -414,11 +415,11 @@ def backup_database(self, path: str, instance_name: Optional[str] = None) -> Non
         raise DatabaseError("No active database instance")
         
     instance = self.instances[target]
-    engine_name = instance['engine_type'].name
+    self.target_database_engine_name = instance['engine_type'].name
     
-    backup_command = instance['engine_config'][engine_name].get('BACKUP_COMMAND', '')
+    backup_command = instance['target_database_engine_template_config'][self.target_database_engine_name].get('BACKUP_COMMAND', '')
     if not backup_command:
-        raise DatabaseError(f"Backup not supported for {engine_name}")
+        raise DatabaseError(f"Backup not supported for {self.target_database_engine_name}")
         
     try:
         with self.connections[target].cursor() as cursor:
@@ -436,11 +437,11 @@ def restore_database(self, path: str, instance_name: Optional[str] = None) -> No
         raise DatabaseError("No active database instance")
         
     instance = self.instances[target]
-    engine_name = instance['engine_type'].name
+    self.target_database_engine_name = instance['engine_type'].name
     
-    restore_command = instance['engine_config'][engine_name].get('RESTORE_COMMAND', '')
+    restore_command = instance['target_database_engine_template_config'][self.target_database_engine_name].get('RESTORE_COMMAND', '')
     if not restore_command:
-        raise DatabaseError(f"Restore not supported for {engine_name}")
+        raise DatabaseError(f"Restore not supported for {self.target_database_engine_name}")
         
     try:
         with self.connections[target].cursor() as cursor:
@@ -472,14 +473,14 @@ def get_template_info(self, instance_name: Optional[str] = None) -> Dict[str, An
     self.validate_instance_state(target)
     
     instance = self.instances[target]
-    engine_name = instance['engine_type'].name
+    self.target_database_engine_name = instance['engine_type'].name
     
     return {
-        'engine_type': engine_name,
+        'engine_type': self.target_database_engine_name,
         'connection_type': instance['connect_option'].name,
-        'requires_credentials': instance['engine_config'][engine_name]['CRUDBASIC']['IS_USERNAME_AND_PASSWORD_REQUIRED'],
+        'requires_credentials': instance['target_database_engine_template_config'][self.target_database_engine_name]['CRUDBASIC']['IS_USERNAME_AND_PASSWORD_REQUIRED'],
         'supports_dsn': instance['connect_option'].uses_dsn,
-        'placeholder': instance['engine_config'][engine_name]['CRUDBASIC']['PARAMETER_PLACEHOLDER']
+        'placeholder': instance['target_database_engine_template_config'][self.target_database_engine_name]['CRUDBASIC']['PARAMETER_PLACEHOLDER']
     }
 
 @contextmanager

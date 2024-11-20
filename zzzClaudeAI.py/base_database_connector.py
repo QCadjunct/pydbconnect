@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import importlib
 from prettytable import PrettyTable
 from datetime import datetime
-
+from src.db_templates.database_target_engine_modules_enum_contraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
 class DatabaseError(Exception):
     """Base exception for database operations"""
     pass
@@ -28,13 +28,17 @@ class BaseDatabaseConnector(ABC):
     
     def __init__(self):
         self.target_database_engine_name = None
-        self.connect_option = None
-        self.engine_config = None
+        self.target_database_engine_connect_option = None
+        self.target_database_engine_template_config = None
         self._connection = None
         self._credentials = {'username': None, 'password': None, 'is_default': True}
         self._connection_string = None
         self._load_env()
-
+        self._finalization_of_connection_parameters = None
+        self.is_active=False
+        self.attached_at = datetime.now()
+        self.detached_at = None
+        
     def _load_env(self) -> None:
         """Load environment variables from .env file."""
         env_path = Path('.') / '.env'
@@ -42,7 +46,7 @@ class BaseDatabaseConnector(ABC):
             load_dotenv(env_path)
 
     @abstractmethod
-    def _load_engine_config(self) -> Dict[str, Any]:
+    def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
         """Load engine-specific configuration."""
         pass
 
@@ -57,11 +61,15 @@ class BaseDatabaseConnector(ABC):
         finally:
             cursor.close()
 
-    def change_default_username_and_password(self, show_password: bool = False) -> 'BaseDatabaseConnector':
+    def change_default_username_and_password(self, change_usr_and_pwd_option:ChangeDefaultUsernameAndPassword) -> 'BaseDatabaseConnector':
         """Change database credentials."""
-        if self.connect_option.changes_credentials:
+        show_password:int = ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow.valued # 3 is the default value
+        do_not_show_password:int = ChangeDefaultUsernameAndPassword.ChangeUserAndPwd.valued # 2 is the default value
+        do_not_show_password:int = ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd.valued # 1 is the default value
+        
+        if change_usr_and_pwd_option != ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPWD.value:
             username = input("Enter username: ")
-            password = input("Enter password: ") if show_password else getpass("Enter password: ")
+            password = input("Enter password: ") if show_password == 3 else getpass("Enter password: ")
             
             self._credentials.update({
                 'username': username,
@@ -74,10 +82,10 @@ class BaseDatabaseConnector(ABC):
     def finalization_of_connection_parameters(self, **params) -> 'BaseDatabaseConnector':
         """Finalize connection parameters with custom values."""
         try:
-            default_params = self.engine_config['DEFAULT_PARAMETERS'].copy()
+            default_params = self.target_database_engine_template_config['DEFAULT_PARAMETERS'].copy()
             default_params.update(params)
             
-            if self.engine_config['REQUIRES_CREDENTIALS']:
+            if self.target_database_engine_template_config['REQUIRES_CREDENTIALS']:
                 if not all([self._credentials['username'], self._credentials['password']]):
                     raise CredentialsError("Username and password required but not provided")
                 default_params.update({
@@ -93,9 +101,9 @@ class BaseDatabaseConnector(ABC):
     def _build_connection_string(self, params: Dict[str, Any]) -> str:
         """Build connection string from parameters."""
         try:
-            template = (self.engine_config['DSN_TEMPLATE'] 
-                       if self.connect_option.uses_dsn 
-                       else self.engine_config['CONNECTION_TEMPLATE'])
+            template = (self.target_database_engine_template_config['DSN_TEMPLATE'] 
+                       if self.target_database_engine_connect_option.uses_dsn 
+                       else self.target_database_engine_template_config['CONNECTION_TEMPLATE'])
             return template.format(**params)
         except KeyError as e:
             raise DatabaseError(f"Invalid connection template parameter: {e}")
@@ -103,7 +111,7 @@ class BaseDatabaseConnector(ABC):
     def connect_to_database(self) -> 'BaseDatabaseConnector':
         """Establish database connection."""
         try:
-            module_name = self.engine_config['MODULE']
+            module_name = self.target_database_engine_template_config['MODULE']
             module = importlib.import_module(module_name)
             self._connection = module.connect(self._connection_string)
             return self
@@ -139,7 +147,7 @@ class BaseDatabaseConnector(ABC):
     # CRUD Operations
     def insert(self, table: str, data: Dict[str, Any]) -> int:
         """Insert single record and return inserted id."""
-        placeholder = self.engine_config.get('PLACEHOLDER', '?')
+        placeholder = self.target_database_engine_template_config.get('PLACEHOLDER', '?')
         columns = ','.join(data.keys())
         placeholders = ','.join([placeholder] * len(data))
         query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
@@ -154,7 +162,7 @@ class BaseDatabaseConnector(ABC):
         if not records:
             return
 
-        placeholder = self.engine_config.get('PLACEHOLDER', '?')
+        placeholder = self.target_database_engine_template_config.get('PLACEHOLDER', '?')
         columns = ','.join(records[0].keys())
         placeholders = ','.join([placeholder] * len(records[0]))
         query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
@@ -165,7 +173,7 @@ class BaseDatabaseConnector(ABC):
 
     def update(self, table: str, data: Dict[str, Any], where: Dict[str, Any]) -> int:
         """Update records matching criteria."""
-        placeholder = self.engine_config.get('PLACEHOLDER', '?')
+        placeholder = self.target_database_engine_template_config.get('PLACEHOLDER', '?')
         set_clause = ','.join(f"{k}={placeholder}" for k in data.keys())
         where_clause = ' AND '.join(f"{k}={placeholder}" for k in where.keys())
         query = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
@@ -177,7 +185,7 @@ class BaseDatabaseConnector(ABC):
 
     def delete(self, table: str, where: Dict[str, Any]) -> int:
         """Delete records matching criteria."""
-        placeholder = self.engine_config.get('PLACEHOLDER', '?')
+        placeholder = self.target_database_engine_template_config.get('PLACEHOLDER', '?')
         where_clause = ' AND '.join(f"{k}={placeholder}" for k in where.keys())
         query = f"DELETE FROM {table} WHERE {where_clause}"
 
@@ -189,7 +197,7 @@ class BaseDatabaseConnector(ABC):
     def select(self, table: str, columns: Optional[List[str]] = None, 
                where: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Select records with optional column and where clause filters."""
-        placeholder = self.engine_config.get('PLACEHOLDER', '?')
+        placeholder = self.target_database_engine_template_config.get('PLACEHOLDER', '?')
         cols = ','.join(columns) if columns else '*'
         query = f"SELECT {cols} FROM {table}"
         params = []
@@ -261,7 +269,7 @@ class BaseDatabaseConnector(ABC):
     # Backup and Restore
     def backup_database(self, path: str) -> None:
         """Backup database to specified path."""
-        backup_command = self.engine_config.get('BACKUP_COMMAND', '').format(path=path)
+        backup_command = self.target_database_engine_template_config.get('BACKUP_COMMAND', '').format(path=path)
         if not backup_command:
             raise DatabaseError(f"Backup not supported for {self.target_database_engine_name}")
 
@@ -270,7 +278,7 @@ class BaseDatabaseConnector(ABC):
 
     def restore_database(self, path: str) -> None:
         """Restore database from specified path."""
-        restore_command = self.engine_config.get('RESTORE_COMMAND', '').format(path=path)
+        restore_command = self.target_database_engine_template_config.get('RESTORE_COMMAND', '').format(path=path)
         if not restore_command:
             raise DatabaseError(f"Restore not supported for {self.target_database_engine_name}")
 

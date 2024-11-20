@@ -8,25 +8,24 @@ from pandas import DataFrame
 from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
-from .db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, ConnectionError
-from .db_templates.database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3,DUCKDB as template
-from .db_templates.database_target_engine_modules_enum_contraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption
+from src.db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, ConnectionError
+from src.db_templates.database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3,DUCKDB as template
+from src.db_templates.database_target_engine_modules_enum_contraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption
 
 class DatabaseConnector(BaseDatabaseConnector):
     """
     A fluent interface for database connections supporting multiple engines.
     Uses method chaining for configuration and execution.
     """
-    
-    def __init__(self, engine_type: TargetDatabaseEngine, 
+    def __init__(self, target_database_engine_connect_option_type: TargetDatabaseEngine, 
                  connect_option: TargetDatabaseConnectionStringOption):
         """Initialize database connection with specified engine and options."""
         super().__init__()
-        self.target_database_engine_name = engine_type.name
-        self.connect_option = connect_option
+        self.target_database_engine_name = target_database_engine_connect_option_type.name
+        self.target_database_engine_connect_option_type = target_database_engine_connect_option_type
         self.engine_config = self._load_engine_config()
 
-    def _load_engine_config(self) -> Dict[str, Any]:
+    def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
         """Load engine-specific configuration."""
         try:
              return getattr(template, self.target_database_engine_name)

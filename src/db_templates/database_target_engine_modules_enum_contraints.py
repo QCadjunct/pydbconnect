@@ -171,3 +171,12 @@ class InvalidConnectionOptionError(DatabaseConnectionError):
         self.option = option
         message = f"Connection option {option.name} is not compatible with {engine.name}"
         super().__init__(message)
+        
+class  ChangeDefaultUsernameAndPassword(Enum):
+    """Connection string options for database connections."""
+    # Standard connection strings
+    DoNotChangeUserAndPwd= 1
+    ChangeUserAndPwd = 2
+    ChangeUserAndPwdPlusShow = 3
+    
+        
