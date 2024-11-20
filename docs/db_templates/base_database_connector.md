@@ -1,6 +1,7 @@
 # 📚 BaseDatabaseConnector Documentation
 
 ## Table of Contents
+
 1. [🎯 Overview](#overview)
 2. [⚙️ Installation](#installation)
 3. [🔧 Class Structure](#class-structure)
@@ -18,12 +19,14 @@
 7. [🔍 Error Handling](#error-handling)
 
 ## 🎯 Overview <a name="overview"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 The `BaseDatabaseConnector` is an abstract base class that provides a standardized interface for database connections and operations. It implements a template pattern for database engine configuration and supports various database operations through a fluent interface.
 
 **Key Features:**
-- Template-based engine configuration
+
+- Template-based engine configuration 
 - Secure credential management
 - Comprehensive CRUD operations
 - Transaction support
@@ -31,6 +34,7 @@ The `BaseDatabaseConnector` is an abstract base class that provides a standardiz
 - Backup and restore capabilities
 
 ## ⚙️ Installation <a name="installation"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ```bash
@@ -38,11 +42,13 @@ pip install pandas python-dotenv prettytable
 ```
 
 Required dependencies:
+
 - pandas
 - python-dotenv
 - prettytable
 
 ## 🔧 Class Structure <a name="class-structure"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ### Exceptions <a name="exceptions"></a>
@@ -75,11 +81,13 @@ class BaseDatabaseConnector(ABC):
 ```
 
 ## 🛠️ Core Features <a name="core-features"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ### Connection Management <a name="connection-management"></a>
 
 #### 🔐 Credential Management
+
 ```python
 def change_default_username_and_password(self, show_password: bool = False) -> 'BaseDatabaseConnector':
     """
@@ -94,6 +102,7 @@ def change_default_username_and_password(self, show_password: bool = False) -> '
 ```
 
 #### 🔌 Connection Parameters
+
 ```python
 def finalization_of_connection_parameters(self, **params) -> 'BaseDatabaseConnector':
     """
@@ -110,6 +119,7 @@ def finalization_of_connection_parameters(self, **params) -> 'BaseDatabaseConnec
 ### Query Operations <a name="query-operations"></a>
 
 #### 📊 DataFrame Queries
+
 ```python
 def execute_sql_to_dataframe(self, sql: str, index_col: Optional[str] = None) -> pd.DataFrame:
     """
@@ -125,6 +135,7 @@ def execute_sql_to_dataframe(self, sql: str, index_col: Optional[str] = None) ->
 ```
 
 #### 📋 PrettyTable Output
+
 ```python
 def execute_sql_to_prettytable(self, sql: str, is_print: bool = False) -> Optional[PrettyTable]:
     """
@@ -142,6 +153,7 @@ def execute_sql_to_prettytable(self, sql: str, is_print: bool = False) -> Option
 ### CRUD Operations <a name="crud-operations"></a>
 
 #### ➕ Insert
+
 ```python
 def insert(self, table: str, data: Dict[str, Any]) -> int:
     """
@@ -157,6 +169,7 @@ def insert(self, table: str, data: Dict[str, Any]) -> int:
 ```
 
 #### 🔄 Update
+
 ```python
 def update(self, table: str, data: Dict[str, Any], where: Dict[str, Any]) -> int:
     """
@@ -175,6 +188,7 @@ def update(self, table: str, data: Dict[str, Any], where: Dict[str, Any]) -> int
 ### Transaction Management <a name="transaction-management"></a>
 
 #### 📦 Transaction Context
+
 ```python
 @contextmanager
 def transaction(self):
@@ -188,6 +202,7 @@ def transaction(self):
 ```
 
 #### 🔖 Savepoints
+
 ```python
 def savepoint(self, name: str) -> None:
     """
@@ -227,9 +242,11 @@ def backup_database(self, path: str) -> None:
 ```
 
 ## 💻 Usage Examples <a name="usage-examples"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ### Basic Usage
+
 ```python
 class MyDatabaseConnector(BaseDatabaseConnector):
     def _load_engine_config(self) -> Dict[str, Any]:
@@ -250,6 +267,7 @@ with MyDatabaseConnector() as db:
 ```
 
 ### Transaction Example
+
 ```python
 with connector.transaction():
     connector.insert("users", {"name": "John", "email": "john@example.com"})
@@ -259,19 +277,23 @@ with connector.transaction():
 ```
 
 ## 📋 API Reference <a name="api-reference"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 ### Connection Methods
+
 - `change_default_username_and_password(show_password: bool = False) -> BaseDatabaseConnector`
 - `finalization_of_connection_parameters(**params) -> BaseDatabaseConnector`
 - `connect_to_database() -> BaseDatabaseConnector`
 - `close() -> None`
 
 ### Query Methods
+
 - `execute_sql_to_dataframe(sql: str, index_col: Optional[str] = None) -> pd.DataFrame`
 - `execute_sql_to_prettytable(sql: str, is_print: bool = False) -> Optional[PrettyTable]`
 
 ### CRUD Methods
+
 - `insert(table: str, data: Dict[str, Any]) -> int`
 - `bulk_insert(table: str, records: List[Dict[str, Any]]) -> None`
 - `update(table: str, data: Dict[str, Any], where: Dict[str, Any]) -> int`
@@ -279,14 +301,17 @@ with connector.transaction():
 - `select(table: str, columns: Optional[List[str]] = None, where: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]`
 
 ## 🔍 Error Handling <a name="error-handling"></a>
+
 [↑ Back to Top](#table-of-contents)
 
 The connector uses a hierarchical exception system:
+
 - `DatabaseError`: Base exception for all database operations
 - `ConnectionError`: Specific to connection failures
 - `CredentialsError`: Related to authentication issues
 
 Example error handling:
+
 ```python
 try:
     with connector.transaction():
