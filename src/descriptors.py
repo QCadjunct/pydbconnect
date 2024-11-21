@@ -233,6 +233,7 @@ class PandaDataFrameDescriptor(BaseDescriptor):
             raise TypeError(f"'{self.name}' must be a pandas DataFrame")
         setattr(instance, self.private_name, value)
 
+from src.db_templates.database_target_engine_modules_enum_contraints import ChangeDefaultUsernameAndPassword
 class ConnectionManager:
     """Handles database connection credentials and environment settings."""
     
@@ -282,28 +283,18 @@ class ConnectionManager:
         """Get current password."""
         return self._credentials.get("password")
     
-"""
-    This descriptors.py:
+    @property
+    def show_password(self,selection:ChangeDefaultUsernameAndPassword) -> bool:
+        """Get current password visibility."""
+        
+        return False if selection == ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd else True
+    
+    @property
+    def ChangeDefaultUsernameAndPassword(self,selection:ChangeDefaultUsernameAndPassword) -> bool:
+        """ ChangeDefaultUsernameAndPassword """
+       
+        return  True if selection == ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow or \
+                        selection == ChangeDefaultUsernameAndPassword.ChangeUserAndPwd            \
+                    else \
+                        False
 
-    1. **Follows KISS Principles**:
-    - Each descriptor has a single responsibility
-    - Clear validation rules
-    - Simple error handling
-
-    2. **Reduces Complexity**:
-    - Removed unnecessary methods
-    - Simplified validation
-    - Clear documentation
-
-    3. **Maintains Type Safety**:
-    - Strong typing with type hints
-    - Consistent validation
-    - Clear error messages
-
-    4. **Supports Extensibility**:
-    - Base class for new descriptors
-    - Template-driven configuration
-    - Flexible data structures
-
-    5. **Improves Readability**:  
-"""

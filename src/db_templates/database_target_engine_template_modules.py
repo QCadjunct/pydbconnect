@@ -52,8 +52,7 @@ def load_dsn_parameter_keys_dict(target_database_engine: str, d: Dict[str, Any])
 
 # Database Engine Configuration Templates
 MSSQL: Dict[str, Dict[str, Any]] = {
-    "MSSQL": {
-        "DEFAULT_PARAMETERS": {
+            "DEFAULT_PARAMETERS": {
             "DRIVER": "{ODBC Driver 17 for SQL Server}",
             "DSN_NAME": "Northwinds2024StudentDSN",
             "DATABASE_NAME": "Northwinds2024Student",
@@ -92,14 +91,14 @@ MSSQL: Dict[str, Dict[str, Any]] = {
             "IS_USERNAME_AND_PASSWORD_REQUIRED": True
         },
         "CREATE_DATABASE_CONNECTION": {
+            "REQUIRES_CREDENTIALS": True,
             "CONNECTION_NOTES": "Use pyodbc.connect with connection string",
             "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": lambda finalized_parameter_connection_string: lambda: get_db_target_engine_module('pyodbc').connect(finalized_parameter_connection_string)
         }
     }
-}
 
 MYSQL: Dict[str, Dict[str, Any]] = {
-    "MYSQL": {
+    
         "DEFAULT_PARAMETERS": {
             "DRIVER": "{MySQL ODBC 8.2 ANSI Driver}",
             "DSN_NAME": "MySQLNorthwindOrderDSN",
@@ -142,16 +141,16 @@ MYSQL: Dict[str, Dict[str, Any]] = {
             "IS_USERNAME_AND_PASSWORD_REQUIRED": True
         },
         "CREATE_DATABASE_CONNECTION": {
+            "REQUIRES_CREDENTIALS": True,
             "CONNECTION_NOTES": "Use pyodbc.connect with connection string",
             "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": lambda finalized_parameter_connection_string: lambda: get_db_target_engine_module('pyodbc').connect(finalized_parameter_connection_string)
         }
     }
-}
+
 
 # Continuation of database_target_engine_template_modules.py
 
 POSTGRESQL: Dict[str, Dict[str, Any]] = {
-    "POSTGRESQL": {
         "DEFAULT_PARAMETERS": {
             "DRIVER": "{PostgreSQL ANSI(x64)}",
             "DSN_NAME": "PostgreSQL_DSN",
@@ -191,14 +190,13 @@ POSTGRESQL: Dict[str, Dict[str, Any]] = {
             "IS_USERNAME_AND_PASSWORD_REQUIRED": True
         },
         "CREATE_DATABASE_CONNECTION": {
+            "REQUIRES_CREDENTIALS": True,
             "CONNECTION_NOTES": "Use pyodbc.connect with connection string",
             "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": lambda finalized_parameter_connection_string: lambda: get_db_target_engine_module('pyodbc').connect(finalized_parameter_connection_string)
         }
     }
-}
 
 SQLITE3: Dict[str, Dict[str, Any]] = {
-    "SQLITE3": {
         "DEFAULT_PARAMETERS": {
             "DRIVER": "{SQLite3 ODBC Driver}",
             "DSN_NAME": "ChinookDatabaseDSN",
@@ -230,14 +228,13 @@ SQLITE3: Dict[str, Dict[str, Any]] = {
             "IS_USERNAME_AND_PASSWORD_REQUIRED": False
         },
         "CREATE_DATABASE_CONNECTION": {
+            "REQUIRES_CREDENTIALS": True,
             "CONNECTION_NOTES": "Use pyodbc.connect with connection string",
             "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": lambda finalized_parameter_connection_string: lambda: get_db_target_engine_module('pyodbc').connect(finalized_parameter_connection_string)
         }
     }
-}
 
 DUCKDB: Dict[str, Dict[str, Any]] = {
-    "DUCKDB": {
         "DEFAULT_PARAMETERS": {
             "DRIVER": "{DuckDB Driver}",
             "DSN_NAME": "",
@@ -264,14 +261,13 @@ DUCKDB: Dict[str, Dict[str, Any]] = {
             "IS_USERNAME_AND_PASSWORD_REQUIRED": False
         },
         "CREATE_DATABASE_CONNECTION": {
+            "REQUIRES_CREDENTIALS": False,
             "CONNECTION_NOTES": "Use duckdb.connect with connection string",
             "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": lambda finalized_parameter_connection_string: lambda: get_db_target_engine_module('duckdb').connect(finalized_parameter_connection_string)
         }
     }
-}
 
 PSYCOPG2: Dict[str, Dict[str, Any]] = {
-    "PSYCOPG2": {
         "DEFAULT_PARAMETERS": {
             "DATABASE_NAME": "NorthwindOrderSubsystem",
             "SERVER": "localhost",
@@ -302,8 +298,8 @@ PSYCOPG2: Dict[str, Dict[str, Any]] = {
             "IS_USERNAME_AND_PASSWORD_REQUIRED": True
         },
         "CREATE_DATABASE_CONNECTION": {
+            "REQUIRES_CREDENTIALS": True,
             "CONNECTION_NOTES": "Use psycopg2.connect with connection string",
             "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING": lambda finalized_parameter_connection_string: lambda: get_db_target_engine_module('psycopg2').connect(finalized_parameter_connection_string)
         }
     }
-}

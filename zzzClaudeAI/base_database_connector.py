@@ -11,6 +11,7 @@ import importlib
 from prettytable import PrettyTable
 from datetime import datetime
 from src.db_templates.database_target_engine_modules_enum_contraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
+
 class DatabaseError(Exception):
     """Base exception for database operations"""
     pass
@@ -63,20 +64,21 @@ class BaseDatabaseConnector(ABC):
 
     def change_default_username_and_password(self, change_usr_and_pwd_option:ChangeDefaultUsernameAndPassword) -> 'BaseDatabaseConnector':
         """Change database credentials."""
-        show_password:int = ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow.valued # 3 is the default value
-        do_not_show_password:int = ChangeDefaultUsernameAndPassword.ChangeUserAndPwd.valued # 2 is the default value
-        do_not_show_password:int = ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd.valued # 1 is the default value
-        
-        if change_usr_and_pwd_option != ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPWD.value:
+
+        #if change_usr_and_pwd_option != ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPWD.value:
+        if ChangeDefaultUsernameAndPassword.changes_default_credentials(change_usr_and_pwd_option) :
             username = input("Enter username: ")
-            password = input("Enter password: ") if show_password == 3 else getpass("Enter password: ")
+            password = input("Enter password: ") if ChangeDefaultUsernameAndPassword.show_password(change_usr_and_pwd_option) else getpass("Enter password: ")
             
             self._credentials.update({
                 'username': username,
                 'password': password,
                 'is_default': False
             })
-            
+        
+        # ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPWD is the value of change_usr_and_pwd_option the credentials will not be changed in self._credentials
+        # 'is_default': True is the default value of is_default in self._credentials                    
+        
         return self
 
     def finalization_of_connection_parameters(self, **params) -> 'BaseDatabaseConnector':

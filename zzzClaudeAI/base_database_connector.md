@@ -1,6 +1,7 @@
 # 📚 BaseDatabaseConnector Documentation
 
 ## Table of Contents
+
 1. [🎯 Overview](#overview)
 2. [⚙️ Installation](#installation)
 3. [🔧 Class Structure](#class-structure)

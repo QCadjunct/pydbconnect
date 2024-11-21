@@ -2,9 +2,7 @@ from enum import Enum
 from typing import Dict, Any, Type
 from abc import ABC, abstractmethod
 import importlib
-from .database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3 as template
-
-
+import src.db_templates.database_target_engine_template_modules as templates
 class TargetDatabaseEngine(Enum):
     """Database engines supported by pydbconnect."""
     MSSQL = "MSSQL"
@@ -13,16 +11,6 @@ class TargetDatabaseEngine(Enum):
     SQLITE3 = "SQLITE3"
     DUCKDB = "DUCKDB"
     PSYCOPG2 = "PSYCOPG2"
-
-    def __init__(self, value: str):
-        """Initialize enum with target database engine name."""
-        
-        # Initialize target_database_engine_name in __init__
-        # Use target_database_engine_name consistently across all methods
-        # Maintain the enum's value through _value_    
-        
-        self._value_ = value
-        self.target_database_engine_name = self.name
 
     @property
     def target_database_engine_name(self) -> str:
@@ -35,19 +23,21 @@ class TargetDatabaseEngine(Enum):
         Check if engine requires username/password authentication.
         Gets value from engine configuration.
         """
- 
-        engine_config = getattr(template, self.target_database_engine_name)
-        return engine_config.get('REQUIRES_CREDENTIALS', False)
 
+        return self.engine_config.get('CREATE_DATABASE_CONNECTION', False).get('REQUIRES_CREDENTIALS', False)  # to do where is 'REQUIRES_CREDENTIALS' located
+
+    @property
+    def engine_config(self) -> dict:
+        """Get the configuration for this engine."""
+        return getattr(templates, self.target_database_engine_name)
+    
     @property
     def supports_dsn(self) -> bool:
         """
         Check if engine supports DSN connections.
         Gets value from engine configuration.
         """
-        from . import templates
-        engine_config = getattr(template, self.target_database_engine_name)
-        return engine_config.get('FORMAT_CONNECTION_STRING', {}).get('IS_DSN_NAME_SUPPORTED', False)
+        return self.engine_config.get('DEFAULT_PARAMETERS',{}).get('FORMAT_CONNECTION_STRING', {}).get('IS_DSN_NAME_SUPPORTED', False)
 
     @property
     def import_module(self) -> str:
@@ -55,18 +45,16 @@ class TargetDatabaseEngine(Enum):
         Get the Python module name required for this engine.
         Gets value from engine configuration.
         """
-        engine_config = getattr(template, self.target_database_engine_name)
-        return engine_config.get('CRUDBASIC', {}).get('IMPORT', '')
+        return self.engine_config.get('CRUDBASIC', {}).get('IMPORT', '')
 
     def load_engine_config(self) -> Dict[str, Any]:
         """Load complete engine configuration."""
 
-        return getattr(template, self.target_database_engine_name)
+        return getattr(templates, self.target_database_engine_name)
 
     def get_placeholder(self) -> str:
         """Get SQL parameter placeholder for this engine."""
-        engine_config = self.load_engine_config()
-        return engine_config.get('CRUDBASIC', {}).get('PARAMETER_PLACEHOLDER', '?')
+        return self.engine_config.get('CRUDBASIC', {}).get('PARAMETER_PLACEHOLDER', '?')
         
     def validate_connection_option(self, option: 'TargetDatabaseConnectionStringOption') -> bool:
         """
@@ -93,7 +81,7 @@ class TargetDatabaseEngine(Enum):
         Get appropriate admin handler based on engine configuration.
         """
         try:
-            engine_config = getattr(template, self.target_database_engine_name)
+            engine_config = getattr(templates, self.target_database_engine_name)
             
             handler_class = engine_config.get('ADMIN_HANDLER')
             if not handler_class:
@@ -131,24 +119,29 @@ class TargetDatabaseConnectionStringOption(Enum):
     Default_DSN_AndChangeUserPwd = 6
     Customize_DSN_AndDefaultUserPwd = 7
     Customize_DSN_AndChangeUserPwd = 8
+    
+    @property
+    def target_database_connection_string_option(self) -> str:
+        """Get the name of the TargetDatabaseConnectionStringOption."""
+        return self.name
 
     @property
     def uses_dsn(self) -> bool:
         """Check if this option uses DSN connection."""
-        return self.value >= 5
+        return self.target_database_connection_string_option >= 5
     
     @property
     def changes_credentials(self) -> bool:
         """Check if this option requires credential changes."""
-        return self.value in [2, 4, 6, 8]
+        return self.target_database_connection_string_option in [2, 4, 6, 8]
     
     @property
     def uses_custom_format(self) -> bool:
         """Check if this option uses custom connection string format."""
-        return self.value in [3, 4, 7, 8]
+        return self.target_database_connection_string_option in [3, 4, 7, 8]
 
     def validate_for_engine(self, engine: TargetDatabaseEngine) -> bool:
-        """
+        """pah
         Validate if this option is compatible with given database engine.
         
         Args:
@@ -166,10 +159,10 @@ class DatabaseConnectionError(Exception):
 class InvalidConnectionOptionError(DatabaseConnectionError):
     """Raised when connection option is incompatible with database engine."""
     
-    def __init__(self, engine: TargetDatabaseEngine, option: TargetDatabaseConnectionStringOption):
-        self.engine = engine
-        self.option = option
-        message = f"Connection option {option.name} is not compatible with {engine.name}"
+    def __init__(self, target_database_engine: TargetDatabaseEngine, target_atabase_connection_option: TargetDatabaseConnectionStringOption):
+        # self.target_database_engine = target_database_engine
+        # self.target_atabase_connection_option = target_atabase_connection_option
+        message = f"Connection option {target_atabase_connection_option.name} is not compatible with {target_database_engine.name}"
         super().__init__(message)
         
 class  ChangeDefaultUsernameAndPassword(Enum):
@@ -179,4 +172,19 @@ class  ChangeDefaultUsernameAndPassword(Enum):
     ChangeUserAndPwd = 2
     ChangeUserAndPwdPlusShow = 3
     
-        
+    @property
+    def change_default_username_and_password(self) -> str:
+        """Get the name of the ChangeDefaultUsernameAndPassword."""
+        return self.value
+    
+    
+    @property
+    def changes_default_credentials(self) -> bool:
+        """Check if this option requires credential changes."""
+        return self.change_default_username_and_password in [2, 3]
+    
+    @property
+    def show_password(self) -> bool:
+        """Check if this option requires whether the password credential should be shown."""
+        return self.change_default_username_and_password in [3]
+    
