@@ -24,7 +24,7 @@ class TargetDatabaseEngine(Enum):
         Gets value from engine configuration.
         """
 
-        return self.engine_config.get('CREATE_DATABASE_CONNECTION', False).get('REQUIRES_CREDENTIALS', False)  # to do where is 'REQUIRES_CREDENTIALS' located
+        return self.engine_config.get('CREATE_DATABASE_CONNECTION', False).get('REQUIRES_CREDENTIALS', False)
 
     @property
     def engine_config(self) -> dict:
@@ -128,7 +128,10 @@ class TargetDatabaseConnectionStringOption(Enum):
     @property
     def uses_dsn(self) -> bool:
         """Check if this option uses DSN connection."""
-        return self.target_database_connection_string_option >= 5
+        # if self.target_database_connection_string_option in [5, 6, 7, 8] use DSN connection
+        # if self.target_database_connection_string_option in [1, 2, 3, 4] use DefaultFormat connection
+        
+        return True if self.target_database_connection_string_option >= 5 else False
     
     @property
     def changes_credentials(self) -> bool:

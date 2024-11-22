@@ -6,6 +6,10 @@ from getpass import getpass
 import os
 from pathlib import Path
 from .exceptions import CredentialsError, ValidationError
+from src.db_templates.database_target_engine_modules_enum_contraints \
+     import ChangeDefaultUsernameAndPassword, TargetDatabaseConnectionStringOption, TargetDatabaseEngine
+import src.db_templates.database_target_engine_template_modules as template
+
 
 class BaseDescriptor(ABC):
     """Base descriptor for all database connection attributes."""

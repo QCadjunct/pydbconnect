@@ -65,7 +65,6 @@ class BaseDatabaseConnector(ABC):
     def change_default_username_and_password(self, change_usr_and_pwd_option:ChangeDefaultUsernameAndPassword) -> 'BaseDatabaseConnector':
         """Change database credentials."""
 
-        #if change_usr_and_pwd_option != ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPWD.value:
         if ChangeDefaultUsernameAndPassword.changes_default_credentials(change_usr_and_pwd_option) :
             username = input("Enter username: ")
             password = input("Enter password: ") if ChangeDefaultUsernameAndPassword.show_password(change_usr_and_pwd_option) else getpass("Enter password: ")
