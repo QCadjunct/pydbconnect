@@ -5,7 +5,7 @@ Exception hierarchy for database operations with validation chain support.
 from typing import Any, List, Dict, Optional
 from enum import Enum
 from src.db_templates.database_target_engine_modules_enum_contraints \
-     import ChangeDefaultUsernameAndPassword, TargetDatabaseConnectionStringOption, TargetDatabaseEngine
+     import TargetDatabaseConnectionStringOption, TargetDatabaseEngine,ChangeDefaultUsernameAndPassword
 # import src.db_templates.database_target_engine_template_modules as template
 
 class DatabaseError(Exception):

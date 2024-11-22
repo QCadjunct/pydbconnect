@@ -136,12 +136,12 @@ class TargetDatabaseConnectionStringOption(Enum):
     @property
     def changes_credentials(self) -> bool:
         """Check if this option requires credential changes."""
-        return self.target_database_connection_string_option in [2, 4, 6, 8]
+        return True if self.target_database_connection_string_option in [2, 4, 6, 8] else False
     
     @property
     def uses_custom_format(self) -> bool:
         """Check if this option uses custom connection string format."""
-        return self.target_database_connection_string_option in [3, 4, 7, 8]
+        return True if self.target_database_connection_string_option in [3, 4, 7, 8] else False
 
     def validate_for_engine(self, engine: TargetDatabaseEngine) -> bool:
         """pah
@@ -184,10 +184,10 @@ class  ChangeDefaultUsernameAndPassword(Enum):
     @property
     def changes_default_credentials(self) -> bool:
         """Check if this option requires credential changes."""
-        return self.change_default_username_and_password in [2, 3]
+        return True if self.change_default_username_and_password in [2, 3] else False
     
     @property
     def show_password(self) -> bool:
         """Check if this option requires whether the password credential should be shown."""
-        return self.change_default_username_and_password in [3]
+        return True if self.change_default_username_and_password in [3] else False
     
