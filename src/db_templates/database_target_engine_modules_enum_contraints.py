@@ -40,6 +40,14 @@ class TargetDatabaseEngine(Enum):
         return self.engine_config.get('DEFAULT_PARAMETERS',{}).get('FORMAT_CONNECTION_STRING', {}).get('IS_DSN_NAME_SUPPORTED', False)
 
     @property
+    def no_dsn_supports(self) -> int:
+        """
+        Check if engine does not support DSN connections.
+        Gets value from engine configuration.
+        """
+        return 1 if not self.engine_config.get('DEFAULT_PARAMETERS',{}).get('FORMAT_CONNECTION_STRING', {}).get('IS_DSN_NAME_SUPPORTED', False) else 2
+    
+    @property
     def import_module(self) -> str:
         """
         Get the Python module name required for this engine.
@@ -129,22 +137,41 @@ class TargetDatabaseConnectionStringOption(Enum):
     def uses_dsn(self) -> bool:
         """Check if this option uses DSN connection."""
         # if self.target_database_connection_string_option in [5, 6, 7, 8] use DSN connection
-        # if self.target_database_connection_string_option in [1, 2, 3, 4] use DefaultFormat connection
-        
-        return True if self.target_database_connection_string_option >= 5 else False
+    
+        uses_dsn_connection = (5, 6, 7, 8)
+        return self.target_database_connection_string_option in uses_dsn_connection
     
     @property
-    def changes_credentials(self) -> bool:
+    def changes_credentials(self) -> 'ChangeDefaultUsernameAndPassword':
         """Check if this option requires credential changes."""
-        return True if self.target_database_connection_string_option in [2, 4, 6, 8] else False
+        return ChangeDefaultUsernameAndPassword.ChangeUserAndPwd  if not (self % 2 == 0) else ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd
+
+    @property
+    def allow_credential_changes(self) -> int:
+        """ Check if this option allows credential changes."""
+        
+        #    class  ChangeDefaultUsernameAndPassword(Enum)
+        #    DoNotChangeUserAndPwd= 1 
+        #    ChangeUserAndPwd = 2
+        #
+        #   change_username_password if self.target_database_connection_string_option in [2, 4, 6, 8] else do_not_change_username_passord
+        #
+        do_not_change_username_passord =1
+        change_username_password = 2
+        return change_username_password if self.target_database_connection_string_option in (2, 4, 6, 8) else do_not_change_username_passord
     
     @property
     def uses_custom_format(self) -> bool:
         """Check if this option uses custom connection string format."""
-        return True if self.target_database_connection_string_option in [3, 4, 7, 8] else False
+        return True if self.target_database_connection_string_option in (3, 4, 7, 8) else False
+
+    @property
+    def changes_default_credentials(self) -> bool:
+        """Check if this option requires credential changes."""
+        return self.change_default_username_and_password in (2, 3)
 
     def validate_for_engine(self, engine: TargetDatabaseEngine) -> bool:
-        """pah
+        """
         Validate if this option is compatible with given database engine.
         
         Args:
@@ -163,8 +190,8 @@ class InvalidConnectionOptionError(DatabaseConnectionError):
     """Raised when connection option is incompatible with database engine."""
     
     def __init__(self, target_database_engine: TargetDatabaseEngine, target_atabase_connection_option: TargetDatabaseConnectionStringOption):
-        # self.target_database_engine = target_database_engine
-        # self.target_atabase_connection_option = target_atabase_connection_option
+        ''' f"Connection option {target_atabase_connection_option.name} is not compatible with {target_database_engine.name}" '''
+        
         message = f"Connection option {target_atabase_connection_option.name} is not compatible with {target_database_engine.name}"
         super().__init__(message)
         
@@ -179,15 +206,4 @@ class  ChangeDefaultUsernameAndPassword(Enum):
     def change_default_username_and_password(self) -> str:
         """Get the name of the ChangeDefaultUsernameAndPassword."""
         return self.value
-    
-    
-    @property
-    def changes_default_credentials(self) -> bool:
-        """Check if this option requires credential changes."""
-        return True if self.change_default_username_and_password in [2, 3] else False
-    
-    @property
-    def show_password(self) -> bool:
-        """Check if this option requires whether the password credential should be shown."""
-        return True if self.change_default_username_and_password in [3] else False
     

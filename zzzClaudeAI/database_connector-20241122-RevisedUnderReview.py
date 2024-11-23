@@ -12,21 +12,32 @@ from dotenv import load_dotenv
 from src.db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, ConnectionError
 from src.db_templates.database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3,DUCKDB as template
 from src.db_templates.database_target_engine_modules_enum_contraints import DatabaseConnectionError, TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
-from exceptions import DatabaseError, ChangeDefaultUsernameAndPassword
+from src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword,DSNUnsupportedByTragetEngineError 
 
 class DatabaseConnector(BaseDatabaseConnector):
-   """Single target database connector implementation."""
+    """Single target database connector implementation."""
    
-   def __init__(self, 
+    def __init__(self, 
                 target_database_engine_type: TargetDatabaseEngine,
                 target_database_engine_connect_option: TargetDatabaseConnectionStringOption):
-       """Initialize target database connection with specified engine and options."""
-       super().__init__()
-       self.target_database_engine_name = target_database_engine_type.name
-       self.target_database_engine_connect_option = target_database_engine_connect_option
-       self.target_database_engine_template_config = self._load_target_database_engine_template_config()
+        """Initialize target database connection with specified engine and options."""
+        super().__init__()
+        self.target_database_engine_type = target_database_engine_type
+        self.target_database_engine_name = self.target_database_engine_type.name
+        self.target_database_engine_connect_option = self.check_if_dsn_is_supported()
+        self.target_database_engine_template_config = self._load_target_database_engine_template_config()
+        self.change_database_usr_and_pwd_option = target_database_engine_connect_option.changes_credentials
 
-   def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
+    def check_if_dsn_is_supported(self) -> 'TargetDatabaseConnectionStringOption':
+        """Check if DSN is supported by target database engine."""
+
+        if not self.target_database_engine_type.supports_dsn and self.target_database_engine_connect_option.uses_dsn:
+            raise DSNUnsupportedByTragetEngineError(
+                f"DSN connections are not supported by {self.target_database_engine_name}"
+            )
+        return self.target_database_engine_connect_option
+
+    def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
        """Load target database engine-specific configuration."""
        try:
            return getattr(template, self.target_database_engine_name)
@@ -35,7 +46,7 @@ class DatabaseConnector(BaseDatabaseConnector):
                f"Unsupported target database engine: {self.target_database_engine_name}"
            ) from e
 
-   def connect_to_database(self) -> 'DatabaseConnector':
+    def connect_to_database(self) -> 'DatabaseConnector':
        """Establish target database connection."""
        try:
            target_database_module_name = self.target_database_engine_template_config['MODULE']
@@ -48,7 +59,7 @@ class DatabaseConnector(BaseDatabaseConnector):
            raise DatabaseConnectionError(f"Failed to connect to target database: {e}")
 
    # Database Query Methods
-   def execute_database_query_to_dataframe(
+    def execute_database_query_to_dataframe(
        self, 
        database_query: str, 
        index_col: Optional[str] = None
@@ -56,7 +67,7 @@ class DatabaseConnector(BaseDatabaseConnector):
        """Execute target database query and return results as DataFrame."""
        return super().execute_database_query_to_dataframe(database_query, index_col)
 
-   def execute_database_query_to_prettytable(
+    def execute_database_query_to_prettytable(
        self, 
        database_query: str, 
        is_print: bool = False
@@ -65,7 +76,7 @@ class DatabaseConnector(BaseDatabaseConnector):
        return super().execute_database_query_to_prettytable(database_query, is_print)
 
    # Database CRUD Operations
-   def insert_database_record(
+    def insert_database_record(
        self, 
        table_name: str, 
        data: Dict[str, Any]
@@ -73,7 +84,7 @@ class DatabaseConnector(BaseDatabaseConnector):
        """Insert single target database record and return inserted id."""
        return super().insert_database_record(table_name, data)
 
-   def bulk_insert_database_records(
+    def bulk_insert_database_records(
        self, 
        table_name: str, 
        records: List[Dict[str, Any]]
@@ -81,7 +92,7 @@ class DatabaseConnector(BaseDatabaseConnector):
        """Insert multiple target database records."""
        super().bulk_insert_database_records(table_name, records)
 
-   def update_database_records(
+    def update_database_records(
        self, 
        table_name: str, 
        data: Dict[str, Any], 
@@ -90,7 +101,7 @@ class DatabaseConnector(BaseDatabaseConnector):
        """Update target database records matching criteria."""
        return super().update_database_records(table_name, data, where)
 
-   def delete_database_records(
+    def delete_database_records(
        self, 
        table_name: str, 
        where: Dict[str, Any]
@@ -98,72 +109,83 @@ class DatabaseConnector(BaseDatabaseConnector):
        """Delete target database records matching criteria."""
        return super().delete_database_records(table_name, where)
 
-   def select_database_records(
+    def select_database_records(
        self, 
        table_name: str, 
        columns: Optional[List[str]] = None, 
        where: Optional[Dict[str, Any]] = None
-   ) -> List[Dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
        """Select target database records with optional filters."""
        return super().select_database_records(table_name, columns, where)
 
    # Database Transaction Management
-   @contextmanager
-   def database_transaction(self):
+    @contextmanager
+    def database_transaction(self):
        """Context manager for target database transaction handling."""
        with super().database_transaction():
            yield
 
-   def begin_database_transaction(self) -> None:
+    def begin_database_transaction(self) -> None:
        """Start a new target database transaction."""
        super().begin_database_transaction()
 
-   def commit_database_transaction(self) -> None:
+    def commit_database_transaction(self) -> None:
        """Commit current target database transaction."""
        super().commit_database_transaction()
 
-   def rollback_database_transaction(self) -> None:
+    def rollback_database_transaction(self) -> None:
        """Rollback current target database transaction."""
        super().rollback_database_transaction()
 
-   def create_database_savepoint(self, savepoint_name: str) -> None:
+    def create_database_savepoint(self, savepoint_name: str) -> None:
        """Create a target database transaction savepoint."""
        super().create_database_savepoint(savepoint_name)
 
-   def rollback_to_database_savepoint(self, savepoint_name: str) -> None:
+    def rollback_to_database_savepoint(self, savepoint_name: str) -> None:
        """Rollback to specified target database savepoint."""
        super().rollback_to_database_savepoint(savepoint_name)
 
    # Database Stored Procedures
-   def execute_database_procedure(
+    def execute_database_procedure(
        self, 
        procedure_name: str, 
        procedure_params: Optional[List[Any]] = None
-   ) -> Optional[List[Any]]:
+    ) -> Optional[List[Any]]:
        """Execute target database stored procedure with optional parameters."""
        return super().execute_database_procedure(procedure_name, procedure_params)
 
    # Database Backup and Restore
-   def backup_target_database(self, backup_path: str) -> None:
+    def backup_target_database(self, backup_path: str) -> None:
        """Backup target database to specified path."""
        super().backup_target_database(backup_path)
 
-   def restore_target_database(self, restore_path: str) -> None:
+    def restore_target_database(self, restore_path: str) -> None:
        """Restore target database from specified path."""
        super().restore_target_database(restore_path)
 
    # Database Custom Methods
-   def change_default_database_username_and_password(
+    def set_credentials_based_on_connect_option(
        self, 
-       change_database_usr_and_pwd_option: ChangeDefaultUsernameAndPassword
-   ) -> 'DatabaseConnector':
+       show_password: bool = False   ) -> 'BaseDatabaseConnector':
        """Change target database credentials."""
-       super().change_default_database_username_and_password(
-           change_database_usr_and_pwd_option
-       )
+       
+       if ChangeDefaultUsernameAndPassword.changes_default_credentials(self.change_database_usr_and_pwd_option):
+           database_username = input("Enter database username: ")
+           database_password = (
+               input("Enter database password: ") 
+               if ChangeDefaultUsernameAndPassword.show_password(show_password) 
+               else getpass("Enter database password: ")
+           )
+           
+           self._target_database_credentials.update({
+               'username': database_username,
+               'password': database_password,
+               'is_default': False
+           })
+       
        return self
 
-   def finalize_database_connection_parameters(
+    def finalize_database_connection_parameters(
        self, 
        **database_params
    ) -> 'DatabaseConnector':
@@ -172,14 +194,14 @@ class DatabaseConnector(BaseDatabaseConnector):
        return self
 
    # Database Context Manager
-   def __enter__(self) -> 'DatabaseConnector':
+    def __enter__(self) -> 'DatabaseConnector':
        """Target database context manager entry."""
        return super().__enter__()
 
-   def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
        """Target database context manager exit with cleanup."""
        super().__exit__(exc_type, exc_val, exc_tb)
 
-   def close_database_connection(self) -> None:
+    def close_database_connection(self) -> None:
        """Close target database connection."""
        super().close_database_connection()

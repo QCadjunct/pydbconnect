@@ -40,7 +40,7 @@ class CredentialsError(DatabaseError):
 class ValidationError(DatabaseError):
     """Exception raised for data validation failures."""
     
-    def __init__(self, field: str, message: str, value: Any = None):
+    def __init__(self, field: str, message: str, value: any = None):
         self.field = field
         self.value = value
         super().__init__(f"{field}: {message}")
@@ -88,6 +88,12 @@ class ConfigurationError(DatabaseError):
         - Unsupported database engine
     """
     pass
+
+
+class DSNUnsupportedByTragetEngineError(Exception):
+    """ Raised when DSN is not supported by target engine """
+    pass
+
 
 # Error code mapping for standard database errors
 ERROR_CODES = {

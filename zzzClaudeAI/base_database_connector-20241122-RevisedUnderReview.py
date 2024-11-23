@@ -70,28 +70,6 @@ class BaseDatabaseConnector(ABC):
        finally:
            database_cursor.close()
 
-   def change_default_database_username_and_password(
-       self, 
-       change_database_usr_and_pwd_option: ChangeDefaultUsernameAndPassword
-   ) -> 'BaseDatabaseConnector':
-       """Change target database credentials."""
-       
-       if ChangeDefaultUsernameAndPassword.changes_default_credentials(change_database_usr_and_pwd_option):
-           database_username = input("Enter database username: ")
-           database_password = (
-               input("Enter database password: ") 
-               if ChangeDefaultUsernameAndPassword.show_password(change_database_usr_and_pwd_option) 
-               else getpass("Enter database password: ")
-           )
-           
-           self._target_database_credentials.update({
-               'username': database_username,
-               'password': database_password,
-               'is_default': False
-           })
-       
-       return self
-
    def finalization_of_database_connection_parameters(self, **params) -> 'BaseDatabaseConnector':
        """Finalize target database connection parameters with custom values."""
        try:

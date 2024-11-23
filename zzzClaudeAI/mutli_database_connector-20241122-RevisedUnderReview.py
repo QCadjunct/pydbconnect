@@ -1,4 +1,5 @@
 """   MultiDatabaseConnector class for connecting to multiple databases with different engines. """
+from getpass import getpass
 from typing import Dict, Any, Optional, List, Callable
 from datetime import datetime
 import logging
@@ -17,6 +18,8 @@ from src.db_templates.database_target_engine_modules_enum_contraints import (
     TargetDatabaseEngine, TargetDatabaseConnectionStringOption,ChangeDefaultUsernameAndPassword
 )
 from src.utils import preload_default_parameters
+from src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword,DSNUnsupportedByTragetEngineError 
+
 class MultiDatabaseConnector(BaseDatabaseConnector):
    def __init__(self):
        super().__init__()
@@ -33,14 +36,24 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
        except AttributeError as e:
            raise DatabaseError(f"Unsupported database engine: {self.target_database_engine_name}") from e
 
+   def check_if_dsn_is_supported(self) -> 'TargetDatabaseConnectionStringOption':
+        """Check if DSN is supported by target database engine."""
+
+        if not self.target_database_engine_type.supports_dsn and self.target_database_engine_connect_option.uses_dsn:
+            raise DSNUnsupportedByTragetEngineError(
+                f"DSN connections are not supported by {self.target_database_engine_name}"
+            )
+        return self.target_database_engine_connect_option
+
    def attach_database_instance(self, 
                               database_alias_name: str,
                               target_database_engine_type: TargetDatabaseEngine,
                               target_database_engine_connect_option: TargetDatabaseConnectionStringOption) -> 'MultiDatabaseConnector':
        try:
            self.target_database_engine_name = target_database_engine_type.name
-           self.target_database_engine_connect_option = target_database_engine_connect_option
+           self.target_database_engine_connect_option = self.check_if_dsn_is_supported()
            self.target_database_engine_template_config = self._load_target_database_engine_template_config()
+           self.set_credentials_based_on_connect_option = target_database_engine_connect_option.changes_credentials
            
            self.attached_database_instances[database_alias_name] = {
                'database_alias_name': database_alias_name,
@@ -62,6 +75,30 @@ class MultiDatabaseConnector(BaseDatabaseConnector):
        except Exception as e:
            self._attached_database_operation_logger.error(f"Failed to attach database {database_alias_name}: {str(e)}")
            raise DatabaseError(f"Failed to attach database {database_alias_name}: {str(e)}")
+
+    # set_credentials_based_on_connect_option is required for each attach database instance
+    # Detaied explanation is required for the method in the further review
+    # 
+   def set_credentials_based_on_connect_option(
+       self, 
+       show_password: bool = False   ) -> 'BaseDatabaseConnector':
+       """Change target database credentials."""
+       
+       if ChangeDefaultUsernameAndPassword.changes_default_credentials(self.change_database_usr_and_pwd_option):
+           database_username = input("Enter database username: ")
+           database_password = (
+               input("Enter database password: ") 
+               if ChangeDefaultUsernameAndPassword.show_password(show_password) 
+               else getpass("Enter database password: ")
+           )
+           
+           self._target_database_credentials.update({
+               'username': database_username,
+               'password': database_password,
+               'is_default': False
+           })
+       
+       return self
 
    def get_default_database_parameters(self) -> Dict[str, Any]:
        """Get default parameters from template."""
