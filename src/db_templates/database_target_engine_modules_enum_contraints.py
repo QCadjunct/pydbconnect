@@ -3,6 +3,18 @@ from typing import Dict, Any, Type
 from abc import ABC, abstractmethod
 import importlib
 import src.db_templates.database_target_engine_template_modules as templates
+
+class  ChangeDefaultUsernameAndPassword(Enum):
+    """Connection string options for database connections."""
+    # Standard connection strings
+    DoNotChangeUserAndPwd= 1
+    ChangeUserAndPwd = 2
+    ChangeUserAndPwdPlusShow = 3
+    
+    @property
+    def change_default_username_and_password(self) -> str:
+        """Get the name of the ChangeDefaultUsernameAndPassword."""
+        return self.value
 class TargetDatabaseEngine(Enum):
     """Database engines supported by pydbconnect."""
     MSSQL = "MSSQL"
@@ -144,7 +156,7 @@ class TargetDatabaseConnectionStringOption(Enum):
     @property
     def changes_credentials(self) -> 'ChangeDefaultUsernameAndPassword':
         """Check if this option requires credential changes."""
-        return ChangeDefaultUsernameAndPassword.ChangeUserAndPwd  if not (self % 2 == 0) else ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd
+        return ChangeDefaultUsernameAndPassword.ChangeUserAndPwd  if not (self.value % 2 == 0) else ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd
 
     @property
     def allow_credential_changes(self) -> int:
@@ -194,16 +206,26 @@ class InvalidConnectionOptionError(DatabaseConnectionError):
         
         message = f"Connection option {target_atabase_connection_option.name} is not compatible with {target_database_engine.name}"
         super().__init__(message)
-        
-class  ChangeDefaultUsernameAndPassword(Enum):
-    """Connection string options for database connections."""
-    # Standard connection strings
-    DoNotChangeUserAndPwd= 1
-    ChangeUserAndPwd = 2
-    ChangeUserAndPwdPlusShow = 3
+   
+def test_enums():
+    # Test accessing enum values
+    print("\nTesting basic enum access:")
+    print(f"Value of DefaultFormatAndDefaultUserPwd: {TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd.value}")
+    print(f"Name of DefaultFormatAndDefaultUserPwd: {TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd.name}")
     
-    @property
-    def change_default_username_and_password(self) -> str:
-        """Get the name of the ChangeDefaultUsernameAndPassword."""
-        return self.value
+    # Test properties
+    option = TargetDatabaseConnectionStringOption.DefaultFormatAndChangeUserPwd
+    print("\nTesting properties for DefaultFormatAndChangeUserPwd:")
+    print(f"Uses DSN: {option.uses_dsn}")
+    print(f"Changes credentials: {option.changes_credentials}")
+    print(f"Allow credential changes: {option.allow_credential_changes}")
+    print(f"Uses custom format: {option.uses_custom_format}")
     
+    # Test DSN option
+    dsn_option = TargetDatabaseConnectionStringOption.Default_DSN_AndDefaultUserPwd
+    print("\nTesting DSN option:")
+    print(f"Uses DSN: {dsn_option.uses_dsn}")
+    print(f"Changes credentials: {dsn_option.changes_credentials}")
+
+if __name__ == "__main__":
+    test_enums()  

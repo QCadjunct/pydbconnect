@@ -205,3 +205,11 @@ class DatabaseConnector(BaseDatabaseConnector):
     def close_database_connection(self) -> None:
        """Close target database connection."""
        super().close_database_connection()
+
+# test_module.py - For testing the dunder methods
+def main():
+    # Create instance
+    db = DatabaseConnector(TargetDatabaseEngine.DUCKDB, TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd)
+
+if __name__ == "__main__":
+    main()    
