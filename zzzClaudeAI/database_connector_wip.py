@@ -166,7 +166,7 @@ class DatabaseConnector(BaseDatabaseConnector):
    # Database Custom Methods
     def set_credentials_based_on_connect_option(
        self, 
-       show_password: bool = False   ) -> 'BaseDatabaseConnector':
+       show_password: bool = False   ) -> 'DatabaseConnector':
        """Change target database credentials."""
        
        if ChangeDefaultUsernameAndPassword.changes_default_credentials(self.change_database_usr_and_pwd_option):
@@ -209,7 +209,14 @@ class DatabaseConnector(BaseDatabaseConnector):
 # test_module.py - For testing the dunder methods
 def main():
     # Create instance
-    db = DatabaseConnector(TargetDatabaseEngine.DUCKDB, TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd)
+    db = DatabaseConnector(TargetDatabaseEngine.MSSQL, TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd) \
+        .set_credentials_based_on_connect_option(show_password=True) \
+        .finalize_database_connection_parameters(
+            host="localhost",
+            port=13001,
+            database="Northwinds2024Student"
+        )  \
+        .connect_to_database()
 
 if __name__ == "__main__":
     main()    
