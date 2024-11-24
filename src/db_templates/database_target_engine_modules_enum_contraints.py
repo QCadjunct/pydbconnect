@@ -170,7 +170,8 @@ class TargetDatabaseConnectionStringOption(Enum):
         #
         do_not_change_username_passord =1
         change_username_password = 2
-        return change_username_password if self.target_database_connection_string_option in (2, 4, 6, 8) else do_not_change_username_passord
+        do_not_change = (2, 4, 6, 8)
+        return change_username_password if self.target_database_connection_string_option in do_not_change else do_not_change_username_passord
     
     @property
     def uses_custom_format(self) -> bool:

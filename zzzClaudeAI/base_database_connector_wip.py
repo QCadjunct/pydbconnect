@@ -15,6 +15,7 @@ from src.db_templates.database_target_engine_modules_enum_contraints import (
    TargetDatabaseConnectionStringOption, 
    ChangeDefaultUsernameAndPassword
 )
+from src.utils import preload_default_parameters
 
 class DatabaseError(Exception):
    """Base exception for database operations"""
@@ -69,44 +70,7 @@ class BaseDatabaseConnector(ABC):
            yield database_cursor
        finally:
            database_cursor.close()
-
-   def finalization_of_database_connection_parameters(self, **params) -> 'BaseDatabaseConnector':
-       """Finalize target database connection parameters with custom values."""
-       try:
-           database_default_params = self.target_database_engine_template_config['DEFAULT_PARAMETERS'].copy()
-           database_default_params.update(params)
            
-           if self.target_database_engine_template_config['REQUIRES_CREDENTIALS']:
-               if not all([
-                   self._target_database_credentials['username'], 
-                   self._target_database_credentials['password']
-               ]):
-                   raise DatabaseCredentialsError("Database username and password required but not provided")
-                   
-               database_default_params.update({
-                   'USERNAME': self._target_database_credentials['username'],
-                   'PASSWORD': self._target_database_credentials['password']
-               })
-           
-           self._target_database_connection_string = self._build_database_connection_string(
-               database_default_params
-           )
-           return self
-       except KeyError as e:
-           raise DatabaseError(f"Missing required database parameter: {e}")
-
-   def _build_database_connection_string(self, params: Dict[str, Any]) -> str:
-       """Build target database connection string from parameters."""
-       try:
-           database_template = (
-               self.target_database_engine_template_config['DSN_TEMPLATE'] 
-               if self.target_database_engine_connect_option.uses_dsn 
-               else self.target_database_engine_template_config['CONNECTION_TEMPLATE']
-           )
-           return database_template.format(**params)
-       except KeyError as e:
-           raise DatabaseError(f"Invalid database connection template parameter: {e}")
-
    def connect_to_database(self) -> 'BaseDatabaseConnector':
        """Establish target database connection."""
        try:

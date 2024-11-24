@@ -9,10 +9,12 @@ from pandas import DataFrame
 from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
-from src.db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, ConnectionError
-from src.db_templates.database_target_engine_template_modules import MSSQL,MYSQL,POSTGRESQL,PSYCOPG2,SQLITE3,DUCKDB as template
-from src.db_templates.database_target_engine_modules_enum_contraints import DatabaseConnectionError, TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
-from src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword,DSNUnsupportedByTragetEngineError 
+#from src.db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, DatabaseCredentialsError, ConnectionError
+from ..src.db_templates.database_target_engine_template_modules import MSSQL, MYSQL, POSTGRESQL,SQLITE3,DUCKDB,PSYCOPG2 as template
+from ..src.db_templates.database_target_engine_modules_enum_contraints import DatabaseConnectionError, TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
+from ..src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword,DSNUnsupportedByTragetEngineError 
+from ..src.utils import preload_default_parameters
+from .base_database_connector_wip import BaseDatabaseConnector, DatabaseError, DatabaseCredentialsError, DatabaseConnectionError
 
 class DatabaseConnector(BaseDatabaseConnector):
     """Single target database connector implementation."""
@@ -45,6 +47,69 @@ class DatabaseConnector(BaseDatabaseConnector):
            raise DatabaseError(
                f"Unsupported target database engine: {self.target_database_engine_name}"
            ) from e
+
+    def set_credentials_based_on_connect_option(
+       self, 
+       show_password: bool = False   ) -> 'BaseDatabaseConnector':
+       """Change target database credentials."""
+       
+       if ChangeDefaultUsernameAndPassword.changes_default_credentials(self.change_database_usr_and_pwd_option):
+           database_username = input("Enter database username: ")
+           database_password = (
+               input("Enter database password: ") 
+               if ChangeDefaultUsernameAndPassword.show_password(show_password) 
+               else getpass("Enter database password: ")
+           )
+           
+           self._target_database_credentials.update({
+               'username': database_username,
+               'password': database_password,
+               'is_default': False
+           })
+       
+       return self
+
+    def _build_database_connection_string(self, params: Dict[str, Any]=None) -> str:
+       """Build target database connection string from parameters."""
+       try:
+
+        if params is None:
+            return {}  # Return empty dict when called without params for default parameters
+        database_template = (
+            self.target_database_engine_template_config['DSN_TEMPLATE'] 
+            if self.target_database_engine_connect_option.uses_dsn 
+            else self.target_database_engine_template_config['CONNECTION_TEMPLATE']
+           )
+        return database_template.format(**params)
+    
+       except KeyError as e:
+           raise DatabaseError(f"Invalid database connection template parameter: {e}")
+
+    @preload_default_parameters(preloaded_params_method=_build_database_connection_string)
+    def finalization_of_database_connection_parameters(self, **params) -> 'DatabaseConnector':
+        """Finalize target database connection parameters with custom values."""
+        try:
+            database_default_params = self.target_database_engine_template_config['DEFAULT_PARAMETERS'].copy()
+            database_default_params.update(params)
+            
+            if self.target_database_engine_template_config['REQUIRES_CREDENTIALS']:
+                if not all([
+                    self._target_database_credentials['username'], 
+                    self._target_database_credentials['password']
+                ]):
+                    raise DatabaseCredentialsError("Database username and password required but not provided")
+                    
+                database_default_params.update({
+                    'USERNAME': self._target_database_credentials['username'],
+                    'PASSWORD': self._target_database_credentials['password']
+                })
+            
+            self._target_database_connection_string = self._build_database_connection_string(
+                database_default_params
+            )
+            return self
+        except KeyError as e:
+            raise DatabaseError(f"Missing required database parameter: {e}")
 
     def connect_to_database(self) -> 'DatabaseConnector':
        """Establish target database connection."""
@@ -185,13 +250,6 @@ class DatabaseConnector(BaseDatabaseConnector):
        
        return self
 
-    def finalize_database_connection_parameters(
-       self, 
-       **database_params
-   ) -> 'DatabaseConnector':
-       """Finalize target database connection parameters."""
-       super().finalize_database_connection_parameters(**database_params)
-       return self
 
    # Database Context Manager
     def __enter__(self) -> 'DatabaseConnector':
@@ -218,5 +276,5 @@ def main():
         )  \
         .connect_to_database()
 
-if __name__ == "__main__":
-    main()    
+# if __name__ == "__main__":
+main()    
