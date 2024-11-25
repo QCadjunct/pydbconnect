@@ -9,12 +9,18 @@ from pandas import DataFrame
 from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
-#from src.db_templates.base_database_connector import BaseDatabaseConnector, DatabaseError, DatabaseCredentialsError, ConnectionError
-from ..src.db_templates.database_target_engine_template_modules import MSSQL, MYSQL, POSTGRESQL,SQLITE3,DUCKDB,PSYCOPG2 as template
-from ..src.db_templates.database_target_engine_modules_enum_contraints import DatabaseConnectionError, TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
-from ..src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword,DSNUnsupportedByTragetEngineError 
-from ..src.utils import preload_default_parameters
-from .base_database_connector_wip import BaseDatabaseConnector, DatabaseError, DatabaseCredentialsError, DatabaseConnectionError
+# from ..src.db_templates.database_target_engine_template_modules import MSSQL, MYSQL, POSTGRESQL,SQLITE3,DUCKDB,PSYCOPG2 as template
+# from ..src.db_templates.database_target_engine_modules_enum_contraints import DatabaseConnectionError, TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
+# from ..src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword,DSNUnsupportedByTragetEngineError 
+# from ..src.utils import preload_default_parameters
+#from .base_database_connector_wip import BaseDatabaseConnector, DatabaseError, DatabaseCredentialsError, DatabaseConnectionError
+
+from pydbconnect.src.db_templates.database_target_engine_template_modules import MSSQL, MYSQL, POSTGRESQL, SQLITE3, DUCKDB, PSYCOPG2 as template
+from pydbconnect.src.db_templates.database_target_engine_modules_enum_contraints import DatabaseConnectionError, TargetDatabaseEngine, TargetDatabaseConnectionStringOption, ChangeDefaultUsernameAndPassword
+from pydbconnect.src.exceptions import DatabaseError, ChangeDefaultUsernameAndPassword, DSNUnsupportedByTragetEngineError
+from pydbconnect.src.utils import preload_default_parameters
+from pydbconnect.base_database_connector_wip import BaseDatabaseConnector, DatabaseError, DatabaseCredentialsError, DatabaseConnectionError
+
 
 class DatabaseConnector(BaseDatabaseConnector):
     """Single target database connector implementation."""
