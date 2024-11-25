@@ -6,14 +6,17 @@ from getpass import getpass
 import os
 from pathlib import Path
 from .exceptions import CredentialsError, ValidationError
-from src.db_templates.database_target_engine_modules_enum_contraints \
-     import ChangeDefaultUsernameAndPassword, TargetDatabaseConnectionStringOption, TargetDatabaseEngine
+from src.db_templates.database_target_engine_modules_enum_contraints import (
+    ChangeDefaultUsernameAndPassword,
+    TargetDatabaseConnectionStringOption,
+    TargetDatabaseEngine,
+)
 import src.db_templates.database_target_engine_template_modules as template
 
 
 class BaseDescriptor(ABC):
     """Base descriptor for all database connection attributes."""
-    
+
     def __init__(self, name: str):
         self.name = name
         self.private_name = f"_{name}"
@@ -31,77 +34,18 @@ class BaseDescriptor(ABC):
         if hasattr(instance, self.private_name):
             delattr(instance, self.private_name)
 
-class CredentialsDescriptor(BaseDescriptor):
-    """
-    Manages database credentials securely.
-    
-    Handles storage and validation of username/password credentials,
-    tracking their default status and last update time.
-    
-    Structure:
-        {
-            'username': str | None,
-            'password': str | None,
-            'is_default': bool,
-            'last_updated': datetime
-        }
-    """
-    
-    def __get__(self, instance: Any, owner: Type[Any]) -> Dict[str, Any]:
-        """
-        Get current credentials.
-        
-        Returns:
-            Dict containing username, password, is_default status, and last_updated
-        """
-        if instance is None:
-            return self
-            
-        if not hasattr(instance, self.private_name):
-            # Initialize default credentials
-            setattr(instance, self.private_name, {
-                'username': None,
-                'password': None,
-                'is_default': True,
-                'last_updated': datetime.now()
-            })
-            
-        return getattr(instance, self.private_name)
-
-    def __set__(self, instance: Any, value: Dict[str, Any]) -> None:
-        """
-        Set credentials with validation.
-        
-        Args:
-            value: Dictionary containing username and password
-            
-        Raises:
-            CredentialsError: If credentials format is invalid
-        """
-        if not isinstance(value, dict):
-            raise CredentialsError("Credentials must be a dictionary")
-            
-        current = self.__get__(instance, type(instance))
-        
-        # Update credentials while preserving structure
-        credentials = {
-            'username': value.get('username', current['username']),
-            'password': value.get('password', current['password']),
-            'is_default': value.get('is_default', False),
-            'last_updated': datetime.now()
-        }
-        
-        setattr(instance, self.private_name, credentials)
 
 class ConnectionParametersDescriptor(BaseDescriptor):
     """
     Manages database connection parameters.
-    
+
     Handles the storage and validation of connection parameters
     like host, port, database name, etc.
     """
-    
-    def __get__(self, instance: Any, owner: Type[Any]) -> Dict[str, Any]:
+
+    def __get__(
+        self, instance: Any, owner: Type[Any]
+    ) -> Union[Dict[str, Any], "ConnectionParametersDescriptor"]:
         """Get current connection parameters."""
         if instance is None:
             return self
@@ -110,28 +54,31 @@ class ConnectionParametersDescriptor(BaseDescriptor):
     def __set__(self, instance: Any, value: Dict[str, Any]) -> None:
         """
         Set connection parameters with validation.
-        
+
         Args:
             value: Dictionary of connection parameters
-            
+
         Raises:
             ValidationError: If parameters format is invalid
         """
         if not isinstance(value, dict):
             raise ValidationError("Parameters must be a dictionary")
-            
+
         # Store parameters
         setattr(instance, self.private_name, value.copy())
+
 
 class QueryResultDescriptor(BaseDescriptor):
     """
     Manages database query results with DataFrame support.
-    
+
     Handles the storage and conversion of query results to pandas DataFrame,
     supporting both direct DataFrame assignment and list conversion.
     """
-    
-    def __get__(self, instance: Any, owner: Type[Any]) -> Optional[pd.DataFrame]:
+
+    def __get__(
+        self, instance: Any, owner: Type[Any]
+    ) -> Union[Optional[pd.DataFrame], "QueryResultDescriptor"]:
         """Get query results as DataFrame."""
         if instance is None:
             return self
@@ -140,10 +87,10 @@ class QueryResultDescriptor(BaseDescriptor):
     def __set__(self, instance: Any, value: Union[pd.DataFrame, list]) -> None:
         """
         Set query results, converting to DataFrame if needed.
-        
+
         Args:
             value: DataFrame or list of records
-            
+
         Raises:
             TypeError: If value cannot be converted to DataFrame
         """
@@ -151,18 +98,21 @@ class QueryResultDescriptor(BaseDescriptor):
             value = pd.DataFrame(value)
         elif not isinstance(value, pd.DataFrame):
             raise TypeError("Query results must be DataFrame or list")
-            
+
         setattr(instance, self.private_name, value)
+
 
 class EngineConfigDescriptor(BaseDescriptor):
     """
     Manages database engine configuration.
-    
+
     Handles the storage and access of engine-specific configuration
     loaded from templates.
     """
-    
-    def __get__(self, instance: Any, owner: Type[Any]) -> Dict[str, Any]:
+
+    def __get__(
+        self, instance: Any, owner: Type[Any]
+    ) -> Union[Dict[str, Any], "EngineConfigDescriptor"]:
         """Get engine configuration."""
         if instance is None:
             return self
@@ -171,17 +121,19 @@ class EngineConfigDescriptor(BaseDescriptor):
     def __set__(self, instance: Any, value: Dict[str, Any]) -> None:
         """
         Set engine configuration.
-        
+
         Args:
             value: Dictionary of engine configuration
-            
+
         Raises:
             ValidationError: If configuration format is invalid
         """
         if not isinstance(value, dict):
             raise ValidationError("Engine configuration must be a dictionary")
-            
+
         setattr(instance, self.private_name, value.copy())
+
+
 class ParameterDescriptor(BaseDescriptor):
     """Descriptor for database connection parameters."""
 
@@ -190,29 +142,36 @@ class ParameterDescriptor(BaseDescriptor):
             return self
         # Get parameter from customized params, fallback to defaults
         return instance._get_connection_param(
-            self.name, 
-            instance._customized_target_parameters, 
-            instance._default_target_parameters
+            self.name,
+            instance._customized_target_parameters,
+            instance._default_target_parameters,
         )
 
     def __set__(self, instance: Any, value: Any) -> None:
         # Store parameter in customized parameters
         instance._customized_target_parameters[self.name] = value
 
+
 class CredentialsDescriptor(BaseDescriptor):
     """Descriptor for database credentials."""
 
-    def __get__(self, instance: Any, owner: Type[Any]) -> Dict[str, Any]:
+    def __get__(
+        self, instance: Any, owner: Type[Any]
+    ) -> Union[Dict[str, Any], "CredentialsDescriptor"]:
         if instance is None:
             return self
         if not hasattr(instance, self.private_name):
             # Initialize default credentials
-            setattr(instance, self.private_name, {
-                "username": None,
-                "password": None,
-                "is_default": True,
-                "requires_auth": True
-            })
+            setattr(
+                instance,
+                self.private_name,
+                {
+                    "username": None,
+                    "password": None,
+                    "is_default": True,
+                    "requires_auth": True,
+                },
+            )
         return getattr(instance, self.private_name)
 
     def __set__(self, instance: Any, value: Dict[str, Any]) -> None:
@@ -222,10 +181,13 @@ class CredentialsDescriptor(BaseDescriptor):
             raise ValueError("Credentials must contain 'username' and 'password'")
         setattr(instance, self.private_name, value)
 
+
 class PandaDataFrameDescriptor(BaseDescriptor):
     """Descriptor for pandas DataFrame results."""
 
-    def __get__(self, instance: Any, owner: Type[Any]) -> pd.DataFrame:
+    def __get__(
+        self, instance: Any, owner: Type[Any]
+    ) -> Union[pd.DataFrame, "PandaDataFrameDescriptor"]:
         if instance is None:
             return self
         if not hasattr(instance, self.private_name):
@@ -237,14 +199,14 @@ class PandaDataFrameDescriptor(BaseDescriptor):
             raise TypeError(f"'{self.name}' must be a pandas DataFrame")
         setattr(instance, self.private_name, value)
 
-from src.db_templates.database_target_engine_modules_enum_contraints import ChangeDefaultUsernameAndPassword
+
+from src.db_templates.database_target_engine_modules_enum_contraints import (
+    ChangeDefaultUsernameAndPassword,
+)
+
+
 class ConnectionManager:
     """Handles database connection credentials and environment settings."""
-    
-    def __init__(self, env_file: Optional[str] = None):
-        self.env_file = env_file or os.getenv('DEFAULT_KEY_MANAGEMENT_ENV_FILE', '.env')
-        self._credentials = CredentialsDescriptor("credentials")
-        self._load_environment()
 
     def _load_environment(self) -> None:
         """Load environment variables from file."""
@@ -252,9 +214,20 @@ class ConnectionManager:
         if env_path.exists():
             # Load environment variables from file
             for line in env_path.read_text().splitlines():
-                if '=' in line and not line.startswith('#'):
-                    key, value = line.strip().split('=', 1)
+                if "=" in line and not line.startswith("#"):
+                    key, value = line.strip().split("=", 1)
                     os.environ[key] = value
+
+    def __init__(self, env_file: Optional[str] = None):
+        self.env_file = env_file or os.getenv("DEFAULT_KEY_MANAGEMENT_ENV_FILE", ".env")
+        # Initialize with default credentials
+        self._credentials = {
+            "username": None,
+            "password": None,
+            "is_default": True,
+            "requires_auth": True,
+        }
+        self._load_environment()
 
     def set_credentials(self, show_password: bool = False) -> Dict[str, str]:
         """Set database credentials via user input."""
@@ -263,42 +236,26 @@ class ConnectionManager:
             password = input("Enter password: ").strip()
         else:
             password = getpass("Enter password: ").strip()
-            
-        credentials = {
-            "username": username,
-            "password": password,
-            "is_default": False,
-            "requires_auth": True
-        }
-        self._credentials = credentials
-        return credentials
+
+        self._credentials.update(
+            {
+                "username": username,
+                "password": password,
+                "is_default": False,
+                "requires_auth": True,
+            }
+        )
+        return self._credentials
 
     def get_credentials(self) -> Dict[str, str]:
-        """Get current credentials."""
         return self._credentials
 
     @property
     def username(self) -> Optional[str]:
         """Get current username."""
-        return self._credentials.get("username")
+        return self._credentials["username"]
 
     @property
     def password(self) -> Optional[str]:
         """Get current password."""
-        return self._credentials.get("password")
-    
-    @property
-    def show_password(self,selection:ChangeDefaultUsernameAndPassword) -> bool:
-        """Get current password visibility."""
-        
-        return False if selection == ChangeDefaultUsernameAndPassword.DoNotChangeUserAndPwd else True
-    
-    @property
-    def ChangeDefaultUsernameAndPassword(self,selection:ChangeDefaultUsernameAndPassword) -> bool:
-        """ ChangeDefaultUsernameAndPassword """
-       
-        return  True if selection == ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow or \
-                        selection == ChangeDefaultUsernameAndPassword.ChangeUserAndPwd            \
-                    else \
-                        False
-
+        return self._credentials["password"]  # Fixed: was returning username

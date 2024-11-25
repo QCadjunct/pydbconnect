@@ -10,12 +10,15 @@ from dotenv import load_dotenv
 import importlib
 from prettytable import PrettyTable
 from datetime import datetime
+import os
+
 from src.db_templates.database_target_engine_modules_enum_contraints import (
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
     ChangeDefaultUsernameAndPassword,
 )
 from src.utils import preload_default_parameters
+from src.descriptors import CredentialsDescriptor, ConnectionManager
 
 
 class DatabaseError(Exception):
@@ -39,6 +42,8 @@ class DatabaseCredentialsError(DatabaseError):
 class BaseDatabaseConnector(ABC):
     """Abstract base class defining common database connection behavior."""
 
+    _credentials = CredentialsDescriptor("credentials")
+
     def __init__(self):
         self.target_database_engine_name = None
         self.target_database_engine_connect_option = None
@@ -61,6 +66,16 @@ class BaseDatabaseConnector(ABC):
         database_env_path = Path(".") / ".env"
         if database_env_path.exists():
             load_dotenv(database_env_path)
+            if self.target_database_engine_name:  # Add this block only
+                self._target_database_credentials = {
+                    "username": os.getenv(
+                        f"{self.target_database_engine_name}_USERNAME", None
+                    ),
+                    "password": os.getenv(
+                        f"{self.target_database_engine_name}_PASSWORD", None
+                    ),
+                    "is_default": True,
+                }
 
     @abstractmethod
     def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
@@ -87,6 +102,9 @@ class BaseDatabaseConnector(ABC):
 
     def connect_to_database(self) -> "BaseDatabaseConnector":
         """Establish target database connection."""
+        if not self.target_database_engine_template_config:
+            raise DatabaseError("Target database engine template config is not loaded")
+
         try:
             database_module_name = self.target_database_engine_template_config["MODULE"]
             database_module = importlib.import_module(database_module_name)

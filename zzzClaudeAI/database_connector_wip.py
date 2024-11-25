@@ -11,14 +11,16 @@ from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
 
-from src.db_templates.database_target_engine_template_modules import (
-    MSSQL,
-    MYSQL,
-    POSTGRESQL,
-    SQLITE3,
-    DUCKDB,
-    PSYCOPG2 as template,
-)
+import src.db_templates.database_target_engine_template_modules as template
+
+# Then you can access each template like:
+# template.MSSQL
+# template.MYSQL
+# template.POSTGRESQL
+# template.SQLITE3
+# template.DUCKDB
+# template.PSYCOPG2
+
 from src.db_templates.database_target_engine_modules_enum_contraints import (
     DatabaseConnectionError,
     TargetDatabaseEngine,
@@ -27,7 +29,7 @@ from src.db_templates.database_target_engine_modules_enum_contraints import (
 )
 from src.exceptions import DatabaseError, DSNUnsupportedByTragetEngineError
 from src.utils import preload_default_parameters
-from .base_database_connector_wip import (
+from zzzClaudeAI.base_database_connector_wip import (
     BaseDatabaseConnector,
     DatabaseError,
     DatabaseCredentialsError,
@@ -37,35 +39,6 @@ from .base_database_connector_wip import (
 
 class DatabaseConnector(BaseDatabaseConnector):
     """Single target database connector implementation."""
-
-    def __init__(
-        self,
-        target_database_engine_type: TargetDatabaseEngine,
-        target_database_engine_connect_option: TargetDatabaseConnectionStringOption,
-    ):
-        """Initialize target database connection with specified engine and options."""
-        super().__init__()
-        self.target_database_engine_type = target_database_engine_type
-        self.target_database_engine_name = self.target_database_engine_type.name
-        self.target_database_engine_connect_option = self.check_if_dsn_is_supported()
-        self.target_database_engine_template_config = (
-            self._load_target_database_engine_template_config()
-        )
-        self.change_database_usr_and_pwd_option = (
-            target_database_engine_connect_option.changes_credentials
-        )
-
-    def check_if_dsn_is_supported(self) -> "TargetDatabaseConnectionStringOption":
-        """Check if DSN is supported by target database engine."""
-
-        if (
-            not self.target_database_engine_type.supports_dsn
-            and self.target_database_engine_connect_option.uses_dsn
-        ):
-            raise DSNUnsupportedByTragetEngineError(
-                f"DSN connections are not supported by {self.target_database_engine_name}"
-            )
-        return self.target_database_engine_connect_option
 
     def _load_target_database_engine_template_config(self) -> Dict[str, Any]:
         """Load target database engine-specific configuration."""
@@ -78,18 +51,15 @@ class DatabaseConnector(BaseDatabaseConnector):
 
     def set_credentials_based_on_connect_option(
         self, show_password: bool = False
-    ) -> "BaseDatabaseConnector":
+    ) -> "BaseDatabaseConnector":  # Note: Matches base class return type
         """Change target database credentials."""
-
         if self.change_database_usr_and_pwd_option.changes_default_credentials:
-
             database_username = input("Enter database username: ")
             database_password = (
                 input("Enter database password: ")
-                if self.change_database_usr_and_pwd_option.show_password
+                if show_password
                 else getpass("Enter database password: ")
             )
-
             self._target_database_credentials.update(
                 {
                     "username": database_username,
@@ -97,8 +67,41 @@ class DatabaseConnector(BaseDatabaseConnector):
                     "is_default": False,
                 }
             )
-
         return self
+
+    def __init__(
+        self,
+        target_database_engine_type: TargetDatabaseEngine,
+        target_database_engine_connect_option: TargetDatabaseConnectionStringOption,
+    ):
+        """Initialize target database connection with specified engine and options."""
+        super().__init__()
+        self.target_database_engine_type = target_database_engine_type
+        self.target_database_engine_name = self.target_database_engine_type.name
+        # Set connect option first
+        self.target_database_engine_connect_option = (
+            target_database_engine_connect_option
+        )
+        # Load config before DSN check
+        self.target_database_engine_template_config = (
+            self._load_target_database_engine_template_config()
+        )
+        # Validate DSN support
+        self.check_if_dsn_is_supported()
+        # Set credentials option
+        self.change_database_usr_and_pwd_option = (
+            target_database_engine_connect_option.changes_credentials
+        )
+
+    def check_if_dsn_is_supported(self) -> None:
+        """Validate if DSN is supported by target database engine."""
+        if (
+            not self.target_database_engine_type.supports_dsn
+            and self.target_database_engine_connect_option.uses_dsn
+        ):
+            raise DSNUnsupportedByTragetEngineError(
+                f"DSN connections are not supported by {self.target_database_engine_name}"
+            )
 
     def _build_database_connection_string(
         self, params: Dict[str, Any] | None = None  # Use Union type to allow None
@@ -275,12 +278,18 @@ class DatabaseConnector(BaseDatabaseConnector):
 
 # test_module.py - For testing the dunder methods
 def main():
-    # Create instance
-    db = DatabaseConnector(
-        TargetDatabaseEngine.MSSQL,
-        TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd,
-    ).set_credentials_based_on_connect_option()
+    try:
+        db = DatabaseConnector(
+            TargetDatabaseEngine.MSSQL,
+            TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd,
+        ).set_credentials_based_on_connect_option() \
+        .finalization_of_database_connection_parameters
+        ).connect_to_database()
+        return db
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
 
 
-# if __name__ == "__main__":
-main()
+if __name__ == "__main__":
+    main()
