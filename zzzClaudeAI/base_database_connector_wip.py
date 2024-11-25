@@ -46,15 +46,14 @@ class BaseDatabaseConnector(ABC):
 
     def __init__(self):
         self.target_database_engine_name = None
-        self.target_database_engine_connect_option = None
-        self.target_database_engine_template_config = None
+        self.target_database_engine_template_config: Dict[str, Any] = {}
         self._target_database_connection = None
         self._target_database_credentials = {
             "username": None,
             "password": None,
             "is_default": True,
         }
-        self._target_database_connection_string = None
+        self._target_database_connection_string: Optional[str] = None
         self._load_database_environment()
         self._finalized_connection_parameters = None
         self.is_database_active = False
@@ -87,6 +86,28 @@ class BaseDatabaseConnector(ABC):
         self, show_password: bool = False
     ) -> "BaseDatabaseConnector":
         """Abstract method for changing target database credentials."""
+        pass
+
+    @abstractmethod
+    def select_database_records(
+        self,
+        table_name: str,
+        columns: Optional[List[str]] = None,
+        where: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Abstract method for selecting database records.
+
+        Args:
+            table_name (str): Name of the target table
+            columns (Optional[List[str]], optional): List of columns to select. Defaults to None.
+            where (Optional[Dict[str, Any]], optional): Where clause conditions. Defaults to None.
+
+        Returns:
+            List[Dict[str, Any]]: List of records as dictionaries
+
+        Raises:
+            DatabaseError: If selection operation fails
+        """
         pass
 
     @contextmanager
@@ -148,125 +169,145 @@ class BaseDatabaseConnector(ABC):
                 raise DatabaseError(f"Database query execution failed: {e}")
 
     # Database CRUD Operations
-    def insert_database_record(self, table_name: str, data: Dict[str, Any]) -> int:
-        """Insert single database record and return inserted id."""
-        database_placeholder = self.target_database_engine_template_config.get(
-            "PLACEHOLDER", "?"
+
+    # Then modify any methods that access the config to handle the typing properly
+    def _get_database_placeholder(self) -> str:
+        """Get database placeholder safely with proper type handling."""
+        try:
+            crud_basic = self.target_database_engine_template_config.get(
+                "CRUDBASIC", {}
+            )
+            return crud_basic.get("PLACEHOLDER", "?")
+        except Exception:
+            return "?"
+
+    def _has_transaction_support(self) -> bool:
+        """Check if database supports transactions."""
+        return self._target_database_connection is not None and hasattr(
+            self._target_database_connection, "commit"
         )
-        database_columns = ",".join(data.keys())
-        database_placeholders = ",".join([database_placeholder] * len(data))
-        database_query = f"INSERT INTO {table_name} ({database_columns}) VALUES ({database_placeholders})"
 
-        with self._database_cursor() as cursor:
-            cursor.execute(database_query, list(data.values()))
+    def commit(self) -> None:
+        """Commit transaction if supported."""
+        if self._target_database_connection is not None:
             self._target_database_connection.commit()
-            return cursor.lastrowid
 
+    def rollback(self) -> None:
+        """Rollback transaction if supported."""
+        if self._target_database_connection is not None:
+            self._target_database_connection.rollback()
+
+    @abstractmethod
+    def insert_database_record(self, table_name: str, data: Dict[str, Any]) -> int:
+        """Abstract method for inserting a single database record.
+
+        Args:
+            table_name (str): Name of the target table
+            data (Dict[str, Any]): Dictionary of column names and values to insert
+
+        Returns:
+            int: ID of the inserted record
+
+        Raises:
+            DatabaseError: If insert operation fails
+        """
+        pass
+
+    @abstractmethod
     def bulk_insert_database_records(
         self, table_name: str, records: List[Dict[str, Any]]
     ) -> None:
-        """Insert multiple database records."""
-        if not records:
-            return
+        """Abstract method for inserting multiple database records.
 
-        database_placeholder = self.target_database_engine_template_config.get(
-            "PLACEHOLDER", "?"
-        )
-        database_columns = ",".join(records[0].keys())
-        database_placeholders = ",".join([database_placeholder] * len(records[0]))
-        database_query = f"INSERT INTO {table_name} ({database_columns}) VALUES ({database_placeholders})"
+        Args:
+            table_name (str): Name of the target table
+            records (List[Dict[str, Any]]): List of records to insert
 
-        with self._database_cursor() as cursor:
-            cursor.executemany(
-                database_query, [list(record.values()) for record in records]
-            )
-            self._target_database_connection.commit()
+        Raises:
+            DatabaseError: If bulk insert operation fails
+        """
+        pass
 
+    @abstractmethod
     def update_database_records(
         self, table_name: str, data: Dict[str, Any], where: Dict[str, Any]
     ) -> int:
-        """Update database records matching criteria."""
-        database_placeholder = self.target_database_engine_template_config.get(
-            "PLACEHOLDER", "?"
-        )
-        set_clause = ",".join(f"{k}={database_placeholder}" for k in data.keys())
-        where_clause = " AND ".join(f"{k}={database_placeholder}" for k in where.keys())
-        database_query = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
+        """Abstract method for updating database records.
 
-        with self._database_cursor() as cursor:
-            cursor.execute(database_query, list(data.values()) + list(where.values()))
-            self._target_database_connection.commit()
-            return cursor.rowcount
+        Args:
+            table_name (str): Name of the target table
+            data (Dict[str, Any]): Dictionary of column names and values to update
+            where (Dict[str, Any]): Where clause conditions
 
+        Returns:
+            int: Number of records updated
+
+        Raises:
+            DatabaseError: If update operation fails
+        """
+        pass
+
+    @abstractmethod
     def delete_database_records(self, table_name: str, where: Dict[str, Any]) -> int:
-        """Delete database records matching criteria."""
-        database_placeholder = self.target_database_engine_template_config.get(
-            "PLACEHOLDER", "?"
-        )
-        where_clause = " AND ".join(f"{k}={database_placeholder}" for k in where.keys())
-        database_query = f"DELETE FROM {table_name} WHERE {where_clause}"
+        """Abstract method for deleting database records.
 
-        with self._database_cursor() as cursor:
-            cursor.execute(database_query, list(where.values()))
-            self._target_database_connection.commit()
-            return cursor.rowcount
+        Args:
+            table_name (str): Name of the target table
+            where (Dict[str, Any]): Where clause conditions
 
-    def select_database_records(
-        self,
-        table_name: str,
-        columns: Optional[List[str]] = None,
-        where: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
-        """Select database records with optional column and where clause filters."""
-        database_placeholder = self.target_database_engine_template_config.get(
-            "PLACEHOLDER", "?"
-        )
-        database_cols = ",".join(columns) if columns else "*"
-        database_query = f"SELECT {database_cols} FROM {table_name}"
-        database_params = []
+        Returns:
+            int: Number of records deleted
 
-        if where:
-            where_clause = " AND ".join(
-                f"{k}={database_placeholder}" for k in where.keys()
-            )
-            database_query += f" WHERE {where_clause}"
-            database_params = list(where.values())
-
-        with self._database_cursor() as cursor:
-            cursor.execute(database_query, database_params)
-            database_columns = [column[0] for column in cursor.description]
-            return [dict(zip(database_columns, row)) for row in cursor.fetchall()]
+        Raises:
+            DatabaseError: If delete operation fails
+        """
+        pass
 
     # Database Transaction Management
     @contextmanager
     def database_transaction(self):
         """Context manager for database transaction handling."""
+        if self._target_database_connection is None:
+            raise DatabaseConnectionError("No active database connection")
+
+        previous_autocommit = False
         if hasattr(self._target_database_connection, "autocommit"):
-            previous_autocommit = self._target_database_connection.autocommit
-            self._target_database_connection.autocommit = False
+            previous_autocommit = getattr(
+                self._target_database_connection, "autocommit", False
+            )
+            setattr(self._target_database_connection, "autocommit", False)
 
         try:
             yield
-            self._target_database_connection.commit()
+            if self._target_database_connection is not None:
+                self._target_database_connection.commit()
         except Exception as e:
-            self._target_database_connection.rollback()
+            if self._target_database_connection is not None:
+                self._target_database_connection.rollback()
             raise DatabaseError(f"Database transaction failed: {e}")
         finally:
-            if hasattr(self._target_database_connection, "autocommit"):
-                self._target_database_connection.autocommit = previous_autocommit
+            if self._target_database_connection is not None and hasattr(
+                self._target_database_connection, "autocommit"
+            ):
+                setattr(
+                    self._target_database_connection, "autocommit", previous_autocommit
+                )
 
     def begin_database_transaction(self) -> None:
         """Start a new database transaction."""
-        if hasattr(self._target_database_connection, "autocommit"):
-            self._target_database_connection.autocommit = False
+        if self._target_database_connection is not None:
+            if hasattr(self._target_database_connection, "autocommit"):
+                setattr(self._target_database_connection, "autocommit", False)
 
     def commit_database_transaction(self) -> None:
         """Commit current database transaction."""
-        self._target_database_connection.commit()
+        if self._target_database_connection is not None:
+            self._target_database_connection.commit()
 
     def rollback_database_transaction(self) -> None:
         """Rollback current database transaction."""
-        self._target_database_connection.rollback()
+        if self._target_database_connection is not None:
+            self._target_database_connection.rollback()
 
     def create_database_savepoint(self, savepoint_name: str) -> None:
         """Create a database transaction savepoint."""

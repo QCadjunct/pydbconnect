@@ -125,7 +125,7 @@ class DatabaseConnector(BaseDatabaseConnector):
     )
     def finalization_of_database_connection_parameters(
         self, **params
-    ) -> "DatabaseConnector":
+    ) -> "BaseDatabaseConnector":
         """Finalize target database connection parameters with custom values."""
         try:
             database_default_params = self.target_database_engine_template_config[
@@ -189,24 +189,95 @@ class DatabaseConnector(BaseDatabaseConnector):
 
     # Database CRUD Operations
     def insert_database_record(self, table_name: str, data: Dict[str, Any]) -> int:
-        """Insert single target database record and return inserted id."""
-        return super().insert_database_record(table_name, data)
+        """Insert single database record and return inserted id."""
+        try:
+            database_placeholder = self._get_database_placeholder()
+            database_columns = ",".join(data.keys())
+            database_placeholders = ",".join([database_placeholder] * len(data))
+            database_query = f"INSERT INTO {table_name} ({database_columns}) VALUES ({database_placeholders})"
+
+            with self._database_cursor() as cursor:
+                try:
+                    cursor.execute(database_query, list(data.values()))
+                    self.commit()
+                    return getattr(cursor, "lastrowid", 0)
+                except Exception as e:
+                    self.rollback()
+                    raise DatabaseError(f"Insert operation failed: {e}")
+        except Exception as e:
+            raise DatabaseError(f"Failed to insert record: {e}")
 
     def bulk_insert_database_records(
         self, table_name: str, records: List[Dict[str, Any]]
     ) -> None:
-        """Insert multiple target database records."""
-        super().bulk_insert_database_records(table_name, records)
+        """Insert multiple database records."""
+        if not records:
+            return
+
+        try:
+            database_placeholder = self._get_database_placeholder()
+            database_columns = ",".join(records[0].keys())
+            database_placeholders = ",".join([database_placeholder] * len(records[0]))
+            database_query = f"INSERT INTO {table_name} ({database_columns}) VALUES ({database_placeholders})"
+
+            with self._database_cursor() as cursor:
+                try:
+                    cursor.executemany(
+                        database_query, [list(record.values()) for record in records]
+                    )
+                    self.commit()
+                except Exception as e:
+                    self.rollback()
+                    raise DatabaseError(f"Bulk insert operation failed: {e}")
+        except Exception as e:
+            raise DatabaseError(f"Failed to bulk insert records: {e}")
 
     def update_database_records(
         self, table_name: str, data: Dict[str, Any], where: Dict[str, Any]
     ) -> int:
-        """Update target database records matching criteria."""
-        return super().update_database_records(table_name, data, where)
+        """Update database records matching criteria."""
+        try:
+            database_placeholder = self._get_database_placeholder()
+            set_clause = ",".join(f"{k}={database_placeholder}" for k in data.keys())
+            where_clause = " AND ".join(
+                f"{k}={database_placeholder}" for k in where.keys()
+            )
+            database_query = (
+                f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
+            )
+
+            with self._database_cursor() as cursor:
+                try:
+                    cursor.execute(
+                        database_query, list(data.values()) + list(where.values())
+                    )
+                    self.commit()
+                    return cursor.rowcount
+                except Exception as e:
+                    self.rollback()
+                    raise DatabaseError(f"Update operation failed: {e}")
+        except Exception as e:
+            raise DatabaseError(f"Failed to update records: {e}")
 
     def delete_database_records(self, table_name: str, where: Dict[str, Any]) -> int:
-        """Delete target database records matching criteria."""
-        return super().delete_database_records(table_name, where)
+        """Delete database records matching criteria."""
+        try:
+            database_placeholder = self._get_database_placeholder()
+            where_clause = " AND ".join(
+                f"{k}={database_placeholder}" for k in where.keys()
+            )
+            database_query = f"DELETE FROM {table_name} WHERE {where_clause}"
+
+            with self._database_cursor() as cursor:
+                try:
+                    cursor.execute(database_query, list(where.values()))
+                    self.commit()
+                    return cursor.rowcount
+                except Exception as e:
+                    self.rollback()
+                    raise DatabaseError(f"Delete operation failed: {e}")
+        except Exception as e:
+            raise DatabaseError(f"Failed to delete records: {e}")
 
     def select_database_records(
         self,
@@ -214,8 +285,26 @@ class DatabaseConnector(BaseDatabaseConnector):
         columns: Optional[List[str]] = None,
         where: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
-        """Select target database records with optional filters."""
-        return super().select_database_records(table_name, columns, where)
+        """Select database records with optional filters."""
+        try:
+            database_placeholder = self._get_database_placeholder()
+            database_cols = ",".join(columns) if columns else "*"
+            database_query = f"SELECT {database_cols} FROM {table_name}"
+            database_params = []
+
+            if where:
+                where_clause = " AND ".join(
+                    f"{k}={database_placeholder}" for k in where.keys()
+                )
+                database_query += f" WHERE {where_clause}"
+                database_params = list(where.values())
+
+            with self._database_cursor() as cursor:
+                cursor.execute(database_query, database_params)
+                database_columns = [column[0] for column in cursor.description]
+                return [dict(zip(database_columns, row)) for row in cursor.fetchall()]
+        except Exception as e:
+            raise DatabaseError(f"Failed to select records: {e}")
 
     # Database Transaction Management
     @contextmanager
@@ -277,19 +366,3 @@ class DatabaseConnector(BaseDatabaseConnector):
 
 
 # test_module.py - For testing the dunder methods
-def main():
-    try:
-        db = DatabaseConnector(
-            TargetDatabaseEngine.MSSQL,
-            TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd,
-        ).set_credentials_based_on_connect_option() \
-        .finalization_of_database_connection_parameters
-        ).connect_to_database()
-        return db
-    except Exception as e:
-        print(f"Error: {e}")
-        return None
-
-
-if __name__ == "__main__":
-    main()
