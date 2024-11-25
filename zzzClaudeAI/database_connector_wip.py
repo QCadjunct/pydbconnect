@@ -11,7 +11,7 @@ from prettytable import PrettyTable
 from pathlib import Path
 from dotenv import load_dotenv
 
-from ..src.db_templates.database_target_engine_template_modules import (
+from src.db_templates.database_target_engine_template_modules import (
     MSSQL,
     MYSQL,
     POSTGRESQL,
@@ -19,14 +19,14 @@ from ..src.db_templates.database_target_engine_template_modules import (
     DUCKDB,
     PSYCOPG2 as template,
 )
-from ..src.db_templates.database_target_engine_modules_enum_contraints import (
+from src.db_templates.database_target_engine_modules_enum_contraints import (
     DatabaseConnectionError,
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
     ChangeDefaultUsernameAndPassword,
 )
-from ..src.exceptions import DatabaseError, DSNUnsupportedByTragetEngineError
-from ..src.utils import preload_default_parameters
+from src.exceptions import DatabaseError, DSNUnsupportedByTragetEngineError
+from src.utils import preload_default_parameters
 from .base_database_connector_wip import (
     BaseDatabaseConnector,
     DatabaseError,
@@ -81,13 +81,12 @@ class DatabaseConnector(BaseDatabaseConnector):
     ) -> "BaseDatabaseConnector":
         """Change target database credentials."""
 
-        if ChangeDefaultUsernameAndPassword.changes_default_credentials(
-            self.change_database_usr_and_pwd_option
-        ):
+        if self.change_database_usr_and_pwd_option.changes_default_credentials:
+
             database_username = input("Enter database username: ")
             database_password = (
                 input("Enter database password: ")
-                if ChangeDefaultUsernameAndPassword.show_password(show_password)
+                if self.change_database_usr_and_pwd_option.show_password
                 else getpass("Enter database password: ")
             )
 
@@ -101,14 +100,13 @@ class DatabaseConnector(BaseDatabaseConnector):
 
         return self
 
-    def _build_database_connection_string(self, params: Dict[str, Any] = None) -> str:
+    def _build_database_connection_string(
+        self, params: Dict[str, Any] | None = None  # Use Union type to allow None
+    ) -> str:
         """Build target database connection string from parameters."""
         try:
+            params = params or {}  # Convert None to empty dict
 
-            if params is None:
-                return (
-                    {}
-                )  # Return empty dict when called without params for default parameters
             database_template = (
                 self.target_database_engine_template_config["DSN_TEMPLATE"]
                 if self.target_database_engine_connect_option.uses_dsn
@@ -260,30 +258,6 @@ class DatabaseConnector(BaseDatabaseConnector):
         super().restore_target_database(restore_path)
 
     # Database Custom Methods
-    def set_credentials_based_on_connect_option(
-        self, show_password: bool = False
-    ) -> "DatabaseConnector":
-        """Change target database credentials."""
-
-        if ChangeDefaultUsernameAndPassword.changes_default_credentials(
-            self.change_database_usr_and_pwd_option
-        ):
-            database_username = input("Enter database username: ")
-            database_password = (
-                input("Enter database password: ")
-                if ChangeDefaultUsernameAndPassword.show_password(show_password)
-                else getpass("Enter database password: ")
-            )
-
-            self._target_database_credentials.update(
-                {
-                    "username": database_username,
-                    "password": database_password,
-                    "is_default": False,
-                }
-            )
-
-        return self
 
     # Database Context Manager
     def __enter__(self) -> "DatabaseConnector":
@@ -302,17 +276,10 @@ class DatabaseConnector(BaseDatabaseConnector):
 # test_module.py - For testing the dunder methods
 def main():
     # Create instance
-    db = (
-        DatabaseConnector(
-            TargetDatabaseEngine.MSSQL,
-            TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd,
-        )
-        .set_credentials_based_on_connect_option(show_password=True)
-        .finalize_database_connection_parameters(
-            host="localhost", port=13001, database="Northwinds2024Student"
-        )
-        .connect_to_database()
-    )
+    db = DatabaseConnector(
+        TargetDatabaseEngine.MSSQL,
+        TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd,
+    ).set_credentials_based_on_connect_option()
 
 
 # if __name__ == "__main__":

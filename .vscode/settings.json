@@ -1,7 +1,6 @@
 {
     // Python interpreter settings
     "python.defaultInterpreterPath": "${workspaceFolder}/.venv-dbconnect/Scripts/python.exe",
-    
     // Python path settings
     "python.analysis.extraPaths": [
         "${workspaceFolder}/src",
@@ -12,14 +11,12 @@
         "${workspaceFolder}/zzzClaudeAI"
     ],
     "python.envFile": "${workspaceFolder}/.env",
-    
     // Code analysis and formatting
     "python.analysis.typeCheckingMode": "basic",
     "python.formatting.provider": "black",
     "editor.formatOnSave": true,
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": true,
-    
     // Testing configuration
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
@@ -27,9 +24,8 @@
     "python.testing.pytestArgs": [
         "tests"
     ],
-    
     // Terminal environment settings
     "terminal.integrated.env.windows": {
-        "PYTHONPATH": "${workspaceFolder}/src;${workspaceFolder}/src/db_templates;${workspaceFolder}/docs;${workspaceFolder}/docs/db_templates;${workspaceFolder}/tests;${workspaceFolder}/zzzClaudeAI"
+        "PYTHONPATH": "${workspaceFolder}"
     }
 }
