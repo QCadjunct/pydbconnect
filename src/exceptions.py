@@ -7,91 +7,141 @@ Follows a simple hierarchy where DatabaseError is the base exception,
 and specific exception types inherit from it.
 """
 
+
 class DatabaseError(Exception):
     """
     Base exception for all database-related errors.
-    
+
     All other exceptions in this module inherit from this class to allow
     for generic error catching while still maintaining error specificity.
     """
+
     pass
+
 
 class ConnectionError(DatabaseError):
     """
     Raised when database connection fails.
-    
+
     Examples:
         - Server unavailable
         - Network issues
         - Invalid connection parameters
     """
+
     pass
+
 
 class CredentialsError(DatabaseError):
     """
     Raised for authentication and credential issues.
-    
+
     Examples:
         - Invalid username/password
         - Missing required credentials
         - Expired credentials
     """
+
     pass
+
+
+from typing import Any, Optional
+from src.exceptions import DatabaseError
+
+
 class ValidationError(DatabaseError):
     """Exception raised for data validation failures."""
-    
-    def __init__(self, field: str, message: str, value: any = None):
+
+    def __init__(self, field: str, message: str, value: Optional[Any] = None):
+        """Initialize ValidationError with field, message and optional value.
+
+        Args:
+            field (str): The field that failed validation
+            message (str): The validation error message
+            value (Optional[Any]): The invalid value. Defaults to None.
+        """
         self.field = field
+        self.message = message  # Store message as instance attribute
         self.value = value
         super().__init__(f"{field}: {message}")
 
-class QueryError(DatabaseError):
-    """
-    Raised when query execution fails.
-    
-    Examples:
-        - Syntax errors
-        - Invalid table/column references
-        - Constraint violations
-    """
-    pass
+    def __str__(self) -> str:
+        """Return string representation of the error.
+
+        Returns:
+            str: Formatted error message including field and value if present
+        """
+        if self.value is not None:
+            return f"{self.field}: {self.message} (value: {self.value})"
+        return f"{self.field}: {self.message}"
+
+    def __repr__(self) -> str:
+        """Return detailed string representation of the error.
+
+        Returns:
+            str: Detailed error representation for debugging
+        """
+        return (
+            f"ValidationError(field='{self.field}', "
+            f"message='{self.message}', "
+            f"value={repr(self.value)})"
+        )
+
+    class QueryError(DatabaseError):
+        """
+        Raised when query execution fails.
+
+        Examples:
+            - Syntax errors
+            - Invalid table/column references
+            - Constraint violations
+        """
+
+        pass
+
 
 class ParameterError(DatabaseError):
     """
     Raised for invalid parameter configurations.
-    
+
     Examples:
         - Missing required parameters
         - Invalid parameter types
         - Parameter value out of range
     """
+
     pass
+
 
 class TransactionError(DatabaseError):
     """
     Raised for transaction-related failures.
-    
+
     Examples:
         - Failed commits
         - Rollback errors
         - Deadlocks
     """
+
     pass
+
 
 class ConfigurationError(DatabaseError):
     """
     Raised for configuration-related issues.
-    
+
     Examples:
         - Missing configuration files
         - Invalid configuration format
         - Unsupported database engine
     """
+
     pass
 
 
 class DSNUnsupportedByTragetEngineError(Exception):
-    """ Raised when DSN is not supported by target engine """
+    """Raised when DSN is not supported by target engine"""
+
     pass
 
 
@@ -101,51 +151,49 @@ ERROR_CODES = {
     "CONNECTION_FAILED": ("E001", "Failed to establish database connection"),
     "CONNECTION_TIMEOUT": ("E002", "Connection attempt timed out"),
     "CONNECTION_CLOSED": ("E003", "Connection unexpectedly closed"),
-    
     # Authentication errors
     "INVALID_CREDENTIALS": ("A001", "Invalid username or password"),
     "MISSING_CREDENTIALS": ("A002", "Required credentials not provided"),
-    
     # Query errors
     "QUERY_SYNTAX": ("Q001", "SQL syntax error"),
     "QUERY_TIMEOUT": ("Q002", "Query execution timed out"),
-    
     # Transaction errors
     "TRANSACTION_FAILED": ("T001", "Transaction failed to complete"),
     "DEADLOCK": ("T002", "Deadlock detected"),
-    
     # Configuration errors
     "INVALID_CONFIG": ("C001", "Invalid configuration"),
-    "MISSING_CONFIG": ("C002", "Required configuration missing")
+    "MISSING_CONFIG": ("C002", "Required configuration missing"),
 }
+
 
 def get_error_info(code: str) -> tuple:
     """
     Get error code and message for a given error type.
-    
+
     Args:
         code: The error code key string
-        
+
     Returns:
         tuple: (error_code, error_message)
-        
+
     Example:
         code, message = get_error_info("CONNECTION_FAILED")
     """
     return ERROR_CODES.get(code, ("UNKNOWN", "Unknown error occurred"))
 
+
 def create_error(error_type: type, code: str, detail: str = "") -> Exception:
     """
     Create an exception with detailed error information.
-    
+
     Args:
         error_type: The exception class to create
         code: The error code key string
         detail: Additional error details
-        
+
     Returns:
         Exception: Configured exception instance
-        
+
     Example:
         raise create_error(ConnectionError, "CONNECTION_FAILED", "Host unreachable")
     """
@@ -154,6 +202,7 @@ def create_error(error_type: type, code: str, detail: str = "") -> Exception:
     if detail:
         message += f": {detail}"
     return error_type(message)
+
 
 """
 This simplified approach:
