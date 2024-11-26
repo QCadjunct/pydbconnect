@@ -371,163 +371,31 @@ class DatabaseConnector(BaseDatabaseConnector):
 
 
 #!/usr/bin/env python3
-"""Test module for DatabaseConnector implementation."""
 
-import logging
-from typing import Optional
-from pathlib import Path
-
+from database_connector_wip import DatabaseConnector
 from src.db_templates.database_target_engine_modules_enum_contraints import (
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
 )
-from src.exceptions import DatabaseError, DSNUnsupportedByTragetEngineError
-from zzzClaudeAI.base_database_connector_wip import (
-    DatabaseConnectionError,
-    DatabaseCredentialsError,
-)
-from database_connector_wip import DatabaseConnector
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
-
-
-class DatabaseConnectorTest:
-    """Test class for DatabaseConnector functionality."""
-
-    def __init__(self):
-        self.db_connector: Optional[DatabaseConnector] = None
-
-    def initialize_connection(
-        self,
-        engine_type: TargetDatabaseEngine = TargetDatabaseEngine.MSSQL,
-        connect_option: TargetDatabaseConnectionStringOption = (
-            TargetDatabaseConnectionStringOption.Customize_DSN_AndChangeUserPwd
-        ),
-    ) -> "DatabaseConnectorTest":
-        """Initialize database connector with specified engine and options."""
-        try:
-            logger.info(f"Initializing connection for {engine_type.name}")
-            self.db_connector = DatabaseConnector(
-                target_database_engine_type=engine_type,
-                target_database_engine_connect_option=connect_option,
-            )
-            return self
-        except Exception as e:
-            logger.error(f"Failed to initialize database connector: {e}")
-            raise
-
-    def setup_credentials(self, show_password: bool = False) -> "DatabaseConnectorTest":
-        """Set up database credentials."""
-        try:
-            if self.db_connector is None:
-                raise DatabaseError("Database connector not initialized")
-
-            logger.info("Setting up database credentials")
-            self.db_connector.set_credentials_based_on_connect_option(
-                show_password=show_password
-            )
-            return self
-        except DatabaseCredentialsError as e:
-            logger.error(f"Credential setup failed: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error during credential setup: {e}")
-            raise
-
-    def finalize_connection(self, **params) -> "DatabaseConnectorTest":
-        """Finalize database connection parameters."""
-        try:
-            if self.db_connector is None:
-                raise DatabaseError("Database connector not initialized")
-
-            logger.info("Finalizing database connection parameters")
-            self.db_connector.finalization_of_database_connection_parameters(**params)
-            return self
-        except DatabaseError as e:
-            logger.error(f"Parameter finalization failed: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error during parameter finalization: {e}")
-            raise
-
-    def establish_connection(self) -> DatabaseConnector:
-        """Establish database connection."""
-        try:
-            if self.db_connector is None:
-                raise DatabaseError("Database connector not initialized")
-
-            logger.info("Establishing database connection")
-            return self.db_connector.connect_to_database()
-        except DatabaseConnectionError as e:
-            logger.error(f"Connection establishment failed: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error during connection establishment: {e}")
-            raise
 
 
 def main():
-    """Main test function demonstrating fluent pattern usage."""
-    test = DatabaseConnectorTest()
-
     try:
-        # Using fluent pattern to set up and establish connection
-        db = (
-            test.initialize_connection(
-                engine_type=TargetDatabaseEngine.MSSQL,
-                connect_option=TargetDatabaseConnectionStringOption.Default_DSN_AndDefaultUserPwd,
+        database = (
+            DatabaseConnector(
+                TargetDatabaseEngine.MSSQL,
+                TargetDatabaseConnectionStringOption.Default_DSN_AndDefaultUserPwd,
             )
-            .setup_credentials(show_password=False)
-            .finalize_connection()
-            .establish_connection()
+            .set_credentials_based_on_connect_option(show_password=True)
+            .finalization_of_database_connection_parameters()
+            .connect_to_database()
         )
-
-        # Test the connection
-        logger.info("Testing connection...")
-        version = db.execute_database_query_to_dataframe("SELECT @@VERSION")
-        logger.info(f"Connected to: {version.iloc[0, 0]}")
-
-        return db
-
-    except DSNUnsupportedByTragetEngineError as e:
-        logger.error(f"DSN support error: {e}")
-        return None
-    except DatabaseCredentialsError as e:
-        logger.error(f"Credential error: {e}")
-        return None
-    except DatabaseConnectionError as e:
-        logger.error(f"Connection error: {e}")
-        return None
-    except DatabaseError as e:
-        logger.error(f"Database error: {e}")
-        return None
+        print("Successfully connected to database")
+        return database
     except Exception as e:
-        logger.error(f"Unexpected error: {e}")
+        print(f"Failed to connect to database: {e}")
         return None
 
 
 if __name__ == "__main__":
-    # Example usage
-    try:
-        db = main()
-        if db is not None:
-            logger.info("Connection successful!")
-
-            # Example query
-            result = db.execute_database_query_to_dataframe(
-                "SELECT name, database_id FROM sys.databases"
-            )
-            logger.info("\nAvailable databases:")
-            logger.info(result)
-
-    except Exception as e:
-        logger.error(f"Test execution failed: {e}")
-    finally:
-        # Cleanup
-        if "db" in locals() and db is not None:
-            db.close_database_connection()
-            logger.info("Connection closed")
+    main()
