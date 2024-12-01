@@ -4,14 +4,14 @@
 
 ## 📑 Table of Contents
 
-1. [Overview](#overview)
-2. [Core Components](#core-components)
-3. [Key Functions](#key-functions)
-4. [Data Flow](#data-flow)
-5. [Error Handling](#error-handling)
-6. [Progress Tracking](#progress-tracking)
-7. [Usage Example](#usage-example)
-8. [Best Practices](#best-practices)
+1. [Overview](#-overview-)
+2. [Core Components](#-core-components-)
+3. [Key Functions](#-key-functions-)
+4. [Data Flow](#-data-flow-)
+5. [Error Handling](#-error-handling-)
+6. [Progress Tracking](#-progress-tracking-)
+7. [Usage Example](#-usage-example-)
+8. [Best Practices](#-best-practices-)
 
 ## 🎯 Overview [↩](#-table-of-contents)
 

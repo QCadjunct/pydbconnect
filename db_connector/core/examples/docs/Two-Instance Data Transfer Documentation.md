@@ -1,35 +1,35 @@
-# 🔄 Two-Instance Database Connector Implementation Guide
+# 🔄 Two-Instance Database Connector Implementation Guide {#main}
 
-## 📋 Table of Contents
+## 📋 Table of Contents {#toc}
 
-1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Implementation Details](#implementation)
-4. [Connection Management](#connection)
-5. [Data Transfer Process](#transfer)
-6. [Error Handling](#errors)
-7. [Best Practices](#best-practices)
+1. [🎯 Overview](#overview)
+2. [🏗️ Architecture](#architecture)
+3. [⚙️ Implementation Details](#implementation)
+4. [🔌 Connection Management](#connections)
+5. [📤 Data Transfer Process](#transfer)
+6. [⚠️ Error Handling](#errors)
+7. [💡 Best Practices](#practices)
 
 ## 🎯 Overview {#overview}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
 An implementation demonstrating database-to-database data transfer using two independent DatabaseConnector instances, following KISS and Occam's Razor principles.
 
 ## 🏗️ Architecture {#architecture}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
-### Component Structure
+### 🧩 Component Structure
 
 | Component | Purpose |
 |-----------|----------|
-| Source Connector | Manages source database connection (SQLite3) |
-| Target Connector | Manages target database connection (PostgreSQL) |
-| Connection Context | Handles connection lifecycle |
-| Transaction Context | Ensures data integrity |
+| 📥 Source Connector | Manages source database connection (SQLite3) |
+| 📤 Target Connector | Manages target database connection (PostgreSQL) |
+| 🔄 Connection Context | Handles connection lifecycle |
+| 🔒 Transaction Context | Ensures data integrity |
 
-### Implementation Pattern
+### 📊 Implementation Pattern
 
 ```mermaid
 graph TD
@@ -40,11 +40,11 @@ graph TD
     E --> F[Close Connections]
 ```
 
-## 🔍 Implementation Details {#implementation}
+## ⚙️ Implementation Details {#implementation}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
-### Connector Initialization
+### 🛠️ Connector Initialization
 
 ```python
 source_db = DatabaseConnector(
@@ -53,20 +53,20 @@ source_db = DatabaseConnector(
 )
 ```
 
-### Key Features
+### ✨ Key Features
 
 - ✅ Independent connector instances
 - ✅ Type-safe engine selection
 - ✅ Configurable connection options
 - ✅ Clean connection management
 
-## 🔌 Connection Management {#connection}
+## 🔌 Connection Management {#connections}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
-### Connection Flow
+### 🔄 Connection Flow
 
-1. **Source Connection**
+1. **📥 Source Connection**
 
    ```python
    with source_db.finalization_of_connection_parameters(
@@ -74,7 +74,7 @@ source_db = DatabaseConnector(
    ).connect_to_database() as source:
    ```
 
-2. **Target Connection**
+2. **📤 Target Connection**
 
    ```python
    with target_db.finalization_of_connection_parameters(
@@ -84,13 +84,13 @@ source_db = DatabaseConnector(
    ).set_credentials_based_on_connect_option().connect_to_database() as target:
    ```
 
-## 🔄 Data Transfer Process {#transfer}
+## 📤 Data Transfer Process {#transfer}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
-### Process Flow
+### 🔄 Process Flow
 
-1. **Read Source Data**
+1. **📖 Read Source Data**
 
    ```python
    source_data = source.execute_query_to_dataframe(
@@ -98,21 +98,21 @@ source_db = DatabaseConnector(
    )
    ```
 
-2. **Insert to Target**
+2. **✔️ Validate Data**
 
    ```python
-   with target.transaction():
-       target.insert(
-           "target_table",
-           {
-               "id": row["id"],
-               "name": row["name"],
-               "value": row["value"]
-           }
-       )
+   validate_data(source_data, required_columns)
    ```
 
-### Data Flow Diagram
+3. **📦 Batch Processing**
+
+   ```python
+   for start_idx in range(0, len(data), batch_size):
+       batch = data.iloc[start_idx:start_idx + batch_size]
+       process_batch(target_db, batch)
+   ```
+
+### 📊 Data Flow Diagram
 
 ```mermaid
 sequenceDiagram
@@ -122,60 +122,101 @@ sequenceDiagram
     S->>C: Read Data
     C->>C: Transform
     C->>T: Insert Data
-    Note over T: Transaction per row
+    Note over T: Transaction per batch
 ```
 
 ## ⚠️ Error Handling {#errors}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
-### Error Strategy
+### 🛡️ Error Strategy
 
-| Error Type | Handling |
-|------------|----------|
-| DatabaseError | Specific database errors |
-| General Exception | Unexpected errors |
-| Connection Issues | Automatic cleanup |
+| Error Type | Handling | Recovery |
+|------------|----------|----------|
+| 🔴 DatabaseError | Transaction rollback | Automatic |
+| 🟡 ValidationError | Process termination | Manual |
+| 🔵 ConnectionError | Cleanup & retry | Automatic |
 
-### Implementation
+### 🔧 Implementation
 
 ```python
 try:
     # Database operations
+    with target.transaction():
+        process_batch(data)
 except DatabaseError as e:
     print(f"Database error: {e}")
+    # Handle cleanup
 except Exception as e:
     print(f"Unexpected error: {e}")
+    # Handle cleanup
 ```
 
-## 💡 Best Practices {#best-practices}
+## 💡 Best Practices {#practices}
 
-[↑ Back to TOC](#table-of-contents)
+[⬆️ Back to Table of Contents](#toc)
 
-### Key Principles
+### 🎯 Key Principles
 
-1. **Resource Management**
+1. **🔒 Resource Management**
    - Use context managers for connections
    - Explicit connection cleanup
    - Transaction integrity
 
-2. **Error Handling**
+2. **⚠️ Error Handling**
    - Specific error types
    - Graceful error reporting
    - Resource cleanup on failure
 
-3. **Data Integrity**
-   - Transaction per operation
+3. **🔐 Data Integrity**
+   - Transaction per batch
    - Validation before transfer
    - Proper type handling
 
 ### 📊 Performance Considerations
 
-- Transaction management per row
-- DataFrame for bulk reading
-- Context managers for resource cleanup
+| Aspect | Strategy | Benefit |
+|--------|----------|----------|
+| 📦 Batch Size | Configurable chunks | Memory efficiency |
+| 🔄 Transactions | Batch-level | Performance optimization |
+| ✔️ Validation | Pre-transfer | Error prevention |
+
+### 📈 Monitoring
+
+1. **📊 Progress Tracking**
+
+   ```python
+   stats = {
+       "total_rows": len(data),
+       "processed_rows": 0,
+       "errors": [],
+       "start_time": datetime.now()
+   }
+   ```
+
+2. **📉 Performance Metrics**
+
+   ```python
+   duration = stats["end_time"] - stats["start_time"]
+   rows_per_second = stats["processed_rows"] / duration.total_seconds()
+   ```
+
+## 📝 Summary
+
+[⬆️ Back to Table of Contents](#toc)
+
+This implementation provides:
+
+- 🧹 Clean, maintainable code
+- 🛡️ Robust error handling
+- 🚀 Efficient data transfer
+- 📊 Progress monitoring
+- 🔒 Resource management
+
+Following KISS and Occam's Razor principles while maintaining functionality and reliability.
 
 ---
-*This implementation follows KISS and Occam's Razor principles while maintaining robust functionality.*
 
-[↑ Back to TOC](#table-of-contents)
+*📚 Documentation for the Two-Instance Database Connector implementation.*
+
+[⬆️ Back to Top](#main)
