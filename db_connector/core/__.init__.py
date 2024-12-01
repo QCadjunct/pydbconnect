@@ -6,3 +6,4 @@ from .connector import (
     ConnectionError,
     CredentialsError,
 )
+from .multi_connector import MultiDatabaseConnector
