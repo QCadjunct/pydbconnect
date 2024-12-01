@@ -1,5 +1,5 @@
+# Description: Database connector implementation.
 """Database Connector Implementation."""
-
 from typing import Dict, Any, Optional, List
 from contextlib import contextmanager
 import importlib
@@ -47,14 +47,17 @@ class DatabaseConnector:
         target_database_engine_connect_option: TargetDatabaseConnectionStringOption,
     ):
         """Initialize database connector."""
+        # Engine configuration
         self.target_database_engine_type = target_database_engine
         self.target_database_engine_name = target_database_engine.name
         self.target_database_engine_connect_option = (
             target_database_engine_connect_option
         )
 
-        # Core attributes
+        # Connection state
         self._connection = None
+        self._module = None
+        self._transaction_active = False
         self._credentials = {"username": None, "password": None, "is_default": True}
         self._connection_string = None
 
@@ -67,7 +70,7 @@ class DatabaseConnector:
         # Validate DSN support
         self._validate_dsn_support()
 
-        # Load environment and attach default credentials
+        # Load environment
         self._load_environment()
 
         # Track state
@@ -78,15 +81,24 @@ class DatabaseConnector:
     def _load_engine_config(self, templates) -> Dict[str, Any]:
         """Load engine-specific configuration."""
         try:
-            return getattr(templates.engines, self.target_database_engine_name)
+            return getattr(templates, self.target_database_engine_name)
         except AttributeError as e:
             raise DatabaseError(
                 f"Unsupported database engine: {self.target_database_engine_name}"
             ) from e
 
     def _load_environment(self) -> None:
-        """Load environment variables."""
-        env_path = Path(".env")
+        """
+        Load environment variables from .env file.
+        Uses Path.cwd() to determine the relative location of the .env file.
+        """
+        # Get current working directory
+        cwd = Path.cwd()
+
+        # Define .env path relative to current working directory
+        env_path = cwd / ".env"
+
+        # Check if .env exists and load it
         if env_path.exists():
             load_dotenv(env_path)
             if self.target_database_engine_name:
@@ -101,6 +113,8 @@ class DatabaseConnector:
                         "is_default": True,
                     }
                 )
+        else:
+            print(f"No .env file found at {env_path}")
 
     def _validate_dsn_support(self) -> None:
         """Validate DSN support for engine."""
@@ -145,7 +159,6 @@ class DatabaseConnector:
     def finalization_of_connection_parameters(self, **params) -> "DatabaseConnector":
         """Finalize connection parameters."""
         try:
-            # Add credentials if required
             if self.engine_config["REQUIRES_CREDENTIALS"]:
                 if not all(
                     [self._credentials["username"], self._credentials["password"]]
@@ -168,21 +181,37 @@ class DatabaseConnector:
 
     def connect_to_database(self) -> "DatabaseConnector":
         """Establish database connection."""
+        if not self._connection_string:
+            raise ConnectionError("Connection string not prepared")
+
         try:
-            module_name = self.engine_config["MODULE"]
-            module = importlib.import_module(module_name)
-            self._connection = module.connect(self._connection_string)
+            # Load module if not already loaded
+            if not self._module:
+                module_name = self.engine_config["MODULE"]
+                self._module = importlib.import_module(module_name)
+
+            # Create connection
+            self._connection = self._module.connect(self._connection_string)
+
+            # Update state
             self.is_database_active = True
             self.database_attached_at = datetime.now()
+            self.database_detached_at = None
+            self._transaction_active = False
+
             return self
         except Exception as e:
+            self._connection = None
+            self._module = None
+            self.is_database_active = False
             raise ConnectionError(f"Failed to connect: {e}")
 
     @contextmanager
     def _cursor(self):
         """Context manager for database cursor."""
-        if not self._connection:
-            raise ConnectionError("No active connection")
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("No active database connection")
+
         cursor = self._connection.cursor()
         try:
             yield cursor
@@ -194,40 +223,51 @@ class DatabaseConnector:
         self, query: str, index_col: Optional[str] = None
     ) -> pd.DataFrame:
         """Execute query and return results as DataFrame."""
-        return pd.read_sql(query, self._connection, index_col=index_col)
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
+        try:
+            with self._cursor() as cursor:
+                cursor.execute(query)
+                columns = [col[0] for col in cursor.description]
+                data = cursor.fetchall()
+                if data:
+                    df = pd.DataFrame(data, columns=columns)
+                    if index_col and index_col in df.columns:
+                        df.set_index(index_col, inplace=True)
+                    return df
+                return pd.DataFrame()
+        except Exception as e:
+            raise DatabaseError(f"Query execution failed: {e}")
 
     @ensure_connected
     def execute_query_to_prettytable(
         self, query: str, print_result: bool = False
     ) -> Optional[PrettyTable]:
         """Execute query and return/print results as PrettyTable."""
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
         with self._cursor() as cursor:
-            cursor.execute(query)
-            table = PrettyTable()
-            table.field_names = [col[0] for col in cursor.description]
-            table.add_rows(cursor.fetchall())
+            try:
+                cursor.execute(query)
+                table = PrettyTable()
+                table.field_names = [col[0] for col in cursor.description]
+                table.add_rows(cursor.fetchall())
 
-            if print_result:
-                print(table)
-                return None
-            return table
-
-    @contextmanager
-    def transaction(self):
-        """Transaction context manager."""
-        if not self._connection:
-            raise ConnectionError("No active connection")
-
-        try:
-            yield
-            self._connection.commit()
-        except Exception:
-            self._connection.rollback()
-            raise
+                if print_result:
+                    print(table)
+                    return None
+                return table
+            except Exception as e:
+                raise DatabaseError(f"Query execution failed: {e}")
 
     @ensure_connected
     def insert(self, table: str, data: Dict[str, Any]) -> int:
         """Insert single record."""
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
         placeholder = self.engine_config["CRUDBASIC"]["PARAMETER_PLACEHOLDER"]
         columns = ",".join(data.keys())
         placeholders = ",".join([placeholder] * len(data))
@@ -236,15 +276,21 @@ class DatabaseConnector:
         with self._cursor() as cursor:
             try:
                 cursor.execute(query, list(data.values()))
-                self._connection.commit()
-                return cursor.lastrowid
+                last_id = cursor.lastrowid
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.commit()
+                return last_id
             except Exception as e:
-                self._connection.rollback()
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.rollback()
                 raise DatabaseError(f"Insert failed: {e}")
 
     @ensure_connected
     def update(self, table: str, data: Dict[str, Any], where: Dict[str, Any]) -> int:
         """Update records."""
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
         placeholder = self.engine_config["CRUDBASIC"]["PARAMETER_PLACEHOLDER"]
         set_clause = ",".join(f"{k}={placeholder}" for k in data)
         where_clause = " AND ".join(f"{k}={placeholder}" for k in where)
@@ -253,15 +299,21 @@ class DatabaseConnector:
         with self._cursor() as cursor:
             try:
                 cursor.execute(query, list(data.values()) + list(where.values()))
-                self._connection.commit()
-                return cursor.rowcount
+                rows_affected = cursor.rowcount
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.commit()
+                return rows_affected
             except Exception as e:
-                self._connection.rollback()
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.rollback()
                 raise DatabaseError(f"Update failed: {e}")
 
     @ensure_connected
     def delete(self, table: str, where: Dict[str, Any]) -> int:
         """Delete records."""
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
         placeholder = self.engine_config["CRUDBASIC"]["PARAMETER_PLACEHOLDER"]
         where_clause = " AND ".join(f"{k}={placeholder}" for k in where)
         query = f"DELETE FROM {table} WHERE {where_clause}"
@@ -269,19 +321,47 @@ class DatabaseConnector:
         with self._cursor() as cursor:
             try:
                 cursor.execute(query, list(where.values()))
-                self._connection.commit()
-                return cursor.rowcount
+                rows_affected = cursor.rowcount
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.commit()
+                return rows_affected
             except Exception as e:
-                self._connection.rollback()
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.rollback()
                 raise DatabaseError(f"Delete failed: {e}")
+
+    @ensure_connected
+    def execute_ddl(self, query: str) -> None:
+        """Execute DDL statement."""
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
+        with self._cursor() as cursor:
+            try:
+                cursor.execute(query)
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.commit()
+            except Exception as e:
+                if self._connection and not getattr(self._connection, "closed", False):
+                    self._connection.rollback()
+                raise DatabaseError(f"DDL execution failed: {e}")
 
     def close(self) -> None:
         """Close database connection."""
         if self._connection:
             try:
-                self._connection.close()
+                if self._transaction_active and not getattr(
+                    self._connection, "closed", False
+                ):
+                    self._connection.rollback()
+                if not getattr(self._connection, "closed", False):
+                    self._connection.close()
+            except Exception:
+                pass
             finally:
                 self._connection = None
+                self._module = None
+                self._transaction_active = False
                 self.is_database_active = False
                 self.database_detached_at = datetime.now()
 
@@ -305,10 +385,24 @@ def main():
         with db.finalization_of_connection_parameters(
             database=":memory:"
         ).connect_to_database() as conn:
-            with conn._cursor() as cursor:
-                cursor.execute("SELECT 1")
-                result = cursor.fetchone()
-                print(f"Connection test result: {result[0]}")
+            # Create test table
+            conn.execute_ddl(
+                """
+                CREATE TABLE test (
+                    id INTEGER PRIMARY KEY,
+                    value TEXT
+                )
+            """
+            )
+
+            # Insert test data
+            row_id = conn.insert("test", {"value": "test data"})
+            print(f"Inserted row ID: {row_id}")
+
+            # Query data
+            result = conn.execute_query_to_prettytable(
+                "SELECT * FROM test", print_result=True
+            )
 
     except DatabaseError as e:
         print(f"Database error: {e}")

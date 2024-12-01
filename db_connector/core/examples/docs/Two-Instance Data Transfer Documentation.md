@@ -14,7 +14,7 @@
 
 [⬆️ Back to Table of Contents](#toc)
 
-An implementation demonstrating database-to-database data transfer using two independent DatabaseConnector instances, following KISS and Occam's Razor principles.
+An implementation demonstrating database-to-database data transfer using two independent DatabaseConnector instances, focused on SQLite3 to PostgreSQL transfer, following KISS principles.
 
 ## 🏗️ Architecture {#architecture}
 
@@ -47,8 +47,19 @@ graph TD
 ### 🛠️ Connector Initialization
 
 ```python
+from db_connector.core.connector import DatabaseConnector
+from db_connector.templates.constraints import (
+    TargetDatabaseEngine,
+    TargetDatabaseConnectionStringOption,
+)
+
 source_db = DatabaseConnector(
     target_database_engine=TargetDatabaseEngine.SQLITE3,
+    target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd
+)
+
+target_db = DatabaseConnector(
+    target_database_engine=TargetDatabaseEngine.POSTGRESQL,
     target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd
 )
 ```
@@ -98,18 +109,19 @@ source_db = DatabaseConnector(
    )
    ```
 
-2. **✔️ Validate Data**
+2. **📝 Transfer Data**
 
    ```python
-   validate_data(source_data, required_columns)
-   ```
-
-3. **📦 Batch Processing**
-
-   ```python
-   for start_idx in range(0, len(data), batch_size):
-       batch = data.iloc[start_idx:start_idx + batch_size]
-       process_batch(target_db, batch)
+   for _, row in source_data.iterrows():
+       with target.transaction():
+           target.insert(
+               "target_table",
+               {
+                   "id": row["id"],
+                   "name": row["name"],
+                   "value": row["value"],
+               },
+           )
    ```
 
 ### 📊 Data Flow Diagram
@@ -120,9 +132,9 @@ sequenceDiagram
     participant C as Connector
     participant T as Target DB
     S->>C: Read Data
-    C->>C: Transform
+    C->>C: Process Row
     C->>T: Insert Data
-    Note over T: Transaction per batch
+    Note over T: Transaction per row
 ```
 
 ## ⚠️ Error Handling {#errors}
@@ -134,22 +146,18 @@ sequenceDiagram
 | Error Type | Handling | Recovery |
 |------------|----------|----------|
 | 🔴 DatabaseError | Transaction rollback | Automatic |
-| 🟡 ValidationError | Process termination | Manual |
-| 🔵 ConnectionError | Cleanup & retry | Automatic |
+| 🟡 ConnectionError | Cleanup & retry | Automatic |
+| 🔵 General Exception | Process termination | Manual |
 
 ### 🔧 Implementation
 
 ```python
 try:
     # Database operations
-    with target.transaction():
-        process_batch(data)
 except DatabaseError as e:
     print(f"Database error: {e}")
-    # Handle cleanup
 except Exception as e:
     print(f"Unexpected error: {e}")
-    # Handle cleanup
 ```
 
 ## 💡 Best Practices {#practices}
@@ -169,37 +177,9 @@ except Exception as e:
    - Resource cleanup on failure
 
 3. **🔐 Data Integrity**
-   - Transaction per batch
-   - Validation before transfer
+   - Transaction per row
    - Proper type handling
-
-### 📊 Performance Considerations
-
-| Aspect | Strategy | Benefit |
-|--------|----------|----------|
-| 📦 Batch Size | Configurable chunks | Memory efficiency |
-| 🔄 Transactions | Batch-level | Performance optimization |
-| ✔️ Validation | Pre-transfer | Error prevention |
-
-### 📈 Monitoring
-
-1. **📊 Progress Tracking**
-
-   ```python
-   stats = {
-       "total_rows": len(data),
-       "processed_rows": 0,
-       "errors": [],
-       "start_time": datetime.now()
-   }
-   ```
-
-2. **📉 Performance Metrics**
-
-   ```python
-   duration = stats["end_time"] - stats["start_time"]
-   rows_per_second = stats["processed_rows"] / duration.total_seconds()
-   ```
+   - Clean connection management
 
 ## 📝 Summary
 
@@ -210,10 +190,9 @@ This implementation provides:
 - 🧹 Clean, maintainable code
 - 🛡️ Robust error handling
 - 🚀 Efficient data transfer
-- 📊 Progress monitoring
 - 🔒 Resource management
 
-Following KISS and Occam's Razor principles while maintaining functionality and reliability.
+Following KISS principles while maintaining functionality and reliability.
 
 ---
 

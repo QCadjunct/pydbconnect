@@ -1,6 +1,6 @@
 """Example of data transfer between two database instances."""
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Any, Optional
 import pandas as pd
 from datetime import datetime
 
@@ -21,9 +21,8 @@ def create_target_table(
         {', '.join(columns_def)}
     )"""
 
-    with db.transaction():
-        with db._cursor() as cursor:
-            cursor.execute(create_query)
+    # Using execute_ddl instead of direct cursor access
+    db.execute_ddl(create_query)
 
 
 def validate_data(data: pd.DataFrame, required_columns: List[str]) -> bool:
@@ -55,11 +54,12 @@ def process_batch(
     for start_idx in range(0, len(data), batch_size):
         batch = data.iloc[start_idx : start_idx + batch_size]
 
-        with target_db.transaction():
-            for _, row in batch.iterrows():
-                target_db.insert(table_name, row.to_dict())
+        # Process each row in the batch
+        for _, row in batch.iterrows():
+            target_db.insert(table_name, row.to_dict())
 
         total_processed += len(batch)
+        print(f"Processed {total_processed} rows...")
 
     return total_processed
 
