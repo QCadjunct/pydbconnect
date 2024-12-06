@@ -11,13 +11,14 @@ from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
 
-from ..templates import engines as templates
-from ..templates.constraints import (
+# Fixed absolute imports
+from db_connector.templates import engines as templates
+from db_connector.templates.constraints import (
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
     ChangeDefaultUsernameAndPassword,
 )
-from ..utils.decorators import preload_parameters, ensure_connected
+from db_connector.utils.decorators import preload_parameters, ensure_connected
 
 
 class DatabaseError(Exception):
@@ -373,37 +374,50 @@ class DatabaseConnector:
 
 
 def main():
-    """Simple demonstration of DatabaseConnector."""
+    """MSSQL connection demonstration."""
     try:
         # Initialize connector
         db = DatabaseConnector(
-            target_database_engine=TargetDatabaseEngine.SQLITE3,
+            target_database_engine=TargetDatabaseEngine.MSSQL,
             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
         )
 
-        # Connect and execute simple query
-        with db.finalization_of_connection_parameters(
-            database=":memory:"
-        ).connect_to_database() as conn:
-            # Create test table
-            conn.execute_ddl(
-                """
-                CREATE TABLE test (
-                    id INTEGER PRIMARY KEY,
-                    value TEXT
-                )
-            """
+        # Proper method chaining
+        with (
+            db.set_credentials_based_on_connect_option()
+            .finalization_of_connection_parameters(
+                server="localhost", port=1433, database="testdb"
             )
+            .connect_to_database()
+        ) as conn:
 
-            # Insert test data
-            row_id = conn.insert("test", {"value": "test data"})
-            print(f"Inserted row ID: {row_id}")
+            # Create test table with proper connection checks
+            with conn._cursor() as cursor:
+                try:
+                    cursor.execute(
+                        """
+                        CREATE TABLE test (
+                            id INTEGER PRIMARY KEY,
+                            value TEXT
+                        )
+                    """
+                    )
+                    if conn.is_database_active and conn._connection:
+                        conn._connection.commit()
+                    else:
+                        raise ConnectionError("Database connection lost")
+                except Exception as e:
+                    if conn.is_database_active and conn._connection:
+                        conn._connection.rollback()
+                    raise DatabaseError(f"Failed to create table: {e}")
 
-            # Query data
+            # Test the connection
             result = conn.execute_query_to_prettytable(
-                "SELECT * FROM test", print_result=True
+                "SELECT @@VERSION as Version", print_result=True
             )
 
+    except ConnectionError as e:
+        print(f"Connection error: {e}")
     except DatabaseError as e:
         print(f"Database error: {e}")
     except Exception as e:

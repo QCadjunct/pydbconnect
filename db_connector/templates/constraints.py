@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Dict, Any, Type
 from abc import ABC, abstractmethod
 import importlib
-import db_connector.templates.constraints as templates
+from db_connector.templates import engines as templates
 
 
 class ChangeDefaultUsernameAndPassword(Enum):
@@ -122,26 +122,6 @@ class TargetDatabaseEngine(Enum):
             return False
 
         return True
-
-    def get_admin_handler(self) -> "DatabaseAdminTemplate":
-        """
-        Get appropriate admin handler based on engine configuration.
-        """
-        try:
-            engine_config = getattr(templates, self.target_database_engine_name)
-
-            handler_class = engine_config.get("ADMIN_HANDLER")
-            if not handler_class:
-                raise ValueError(
-                    f"No admin handler configured for {self.target_database_engine_name}"
-                )
-
-            return handler_class()
-
-        except Exception as e:
-            raise ValueError(
-                f"Error creating admin handler for {self.target_database_engine_name}: {str(e)}"
-            )
 
 
 class TargetDatabaseConnectionStringOption(Enum):
