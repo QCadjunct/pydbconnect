@@ -130,9 +130,7 @@ class DatabaseConnector:
         """Get default connection parameters from engine config."""
         return self.engine_config["DEFAULT_PARAMETERS"].copy()
 
-    def set_credentials_based_on_connect_option(
-        self, show_password: bool = False
-    ) -> "DatabaseConnector":
+    def set_credentials_based_on_connect_option(self) -> "DatabaseConnector":
         """
         Set database credentials based on connection option.
         Uses properties from TargetDatabaseConnectionStringOption to determine behavior.
