@@ -65,9 +65,8 @@ class DatabaseConnector:
         # Load configuration
         self.engine_config = self._load_engine_config(templates)
         self.change_database_usr_and_pwd_option = (
-            target_database_engine_connect_option.changes_credentials
+            target_database_engine_connect_option.allow_credential_changes
         )
-
         # Validate DSN support
         self._validate_dsn_support()
 
@@ -134,12 +133,29 @@ class DatabaseConnector:
     def set_credentials_based_on_connect_option(
         self, show_password: bool = False
     ) -> "DatabaseConnector":
-        """Set database credentials."""
-        if self.change_database_usr_and_pwd_option.changes_default_credentials:
+        """
+        Set database credentials based on connection option.
+        Uses properties from TargetDatabaseConnectionStringOption to determine behavior.
+        """
+        credential_change = (
+            self.target_database_engine_connect_option.allow_credential_changes
+        )
+        # Check if credentials should not be changed (value == 1)
+        if credential_change == 1:  # do_not_change_username_passord
+            # Keep default credentials from environment
+            return self
+
+        # Handle credential changes for change_username_password (value == 2)
+        credential_mode = self.target_database_engine_connect_option.changes_credentials
+        if credential_mode.changes_default_credentials:
+            show_pwd = (
+                credential_mode
+                == ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow
+            )
             username = input("Enter database username: ")
             password = (
                 input("Enter database password: ")
-                if show_password
+                if show_pwd
                 else getpass("Enter database password: ")
             )
 
