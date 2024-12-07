@@ -386,10 +386,10 @@ def main():
         with (
             db.set_credentials_based_on_connect_option()
             .finalization_of_connection_parameters(
-                server="localhost", port=1433, database="testdb"
+                server="127.0.0.1", port=13001, database="AdventureWorks2019"
             )
-            .connect_to_database()
-        ) as conn:
+            .connect_to_database() as conn
+        ):
 
             # Create test table with proper connection checks
             with conn._cursor() as cursor:
