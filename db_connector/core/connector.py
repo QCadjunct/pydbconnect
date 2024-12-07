@@ -127,6 +127,10 @@ class DatabaseConnector:
                 f"DSN not supported by {self.target_database_engine_name}"
             )
 
+    def _get_default_parameters(self) -> Dict[str, Any]:
+        """Get default connection parameters from engine config."""
+        return self.engine_config["DEFAULT_PARAMETERS"].copy()
+
     def set_credentials_based_on_connect_option(
         self, show_password: bool = False
     ) -> "DatabaseConnector":
@@ -156,7 +160,7 @@ class DatabaseConnector:
         except KeyError as e:
             raise DatabaseError(f"Invalid connection parameter: {e}")
 
-    @preload_parameters(_build_connection_string)
+    @preload_parameters(_get_default_parameters)
     def finalization_of_connection_parameters(self, **params) -> "DatabaseConnector":
         """Finalize connection parameters."""
         try:
