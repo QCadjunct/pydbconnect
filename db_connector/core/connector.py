@@ -12,13 +12,19 @@ from prettytable import PrettyTable
 import os
 
 # Fixed absolute imports
-from db_connector.templates import engines as templates
-from db_connector.templates.constraints import (
+# from ..templates import engines as templates
+# from ..templates.constraints import (
+#     TargetDatabaseEngine,
+#     TargetDatabaseConnectionStringOption,
+#     ChangeDefaultUsernameAndPassword,
+# )
+from utils.decorators import preload_parameters, ensure_connected
+import templates.engines as templates
+from templates.constraints import (
+    ChangeDefaultUsernameAndPassword,
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
-    ChangeDefaultUsernameAndPassword,
 )
-from db_connector.utils.decorators import preload_parameters, ensure_connected
 
 
 class DatabaseError(Exception):
@@ -128,7 +134,8 @@ class DatabaseConnector:
 
     def _get_default_parameters(self) -> Dict[str, Any]:
         """Get default connection parameters from engine config."""
-        return self.engine_config["DEFAULT_PARAMETERS"].copy()
+        config = self.engine_config[self.target_database_engine_name]
+        return config["DEFAULT_PARAMETERS"].copy()
 
     def set_credentials_based_on_connect_option(self) -> "DatabaseConnector":
         """

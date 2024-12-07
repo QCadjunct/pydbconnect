@@ -2,7 +2,9 @@ from enum import Enum
 from typing import Dict, Any, Type
 from abc import ABC, abstractmethod
 import importlib
-from db_connector.templates import engines as templates
+
+# from db_connector.templates import engines as templates
+import templates.engines as templates
 
 
 class ChangeDefaultUsernameAndPassword(Enum):
