@@ -148,14 +148,14 @@ class DatabaseConnector:
         # Handle credential changes for change_username_password (value == 2)
         credential_mode = self.target_database_engine_connect_option.changes_credentials
         if credential_mode.changes_default_credentials:
-            show_pwd = (
+            show_password = (
                 credential_mode
                 == ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow
             )
             username = input("Enter database username: ")
             password = (
                 input("Enter database password: ")
-                if show_pwd
+                if show_password
                 else getpass("Enter database password: ")
             )
 
