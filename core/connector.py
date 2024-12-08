@@ -11,14 +11,12 @@ from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
 
-# Fixed absolute imports
-# from ..templates import engines as templates
-# from ..templates.constraints import (
-#     TargetDatabaseEngine,
-#     TargetDatabaseConnectionStringOption,
-#     ChangeDefaultUsernameAndPassword,
-# )
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
 from utils.decorators import preload_parameters, ensure_connected
+
 import templates.engines as templates
 from templates.constraints import (
     ChangeDefaultUsernameAndPassword,

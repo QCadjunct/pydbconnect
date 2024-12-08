@@ -38,7 +38,12 @@
             "request": "launch",
             "program": "${workspaceFolder}/core/connector.py",
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/.."
+            },
+            "justMyCode": true,
+            "cwd": "${workspaceFolder}"
         }
     ]
 }
