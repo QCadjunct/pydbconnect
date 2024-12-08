@@ -1,128 +1,22 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "pydbconnect"
-version = "0.1.0"
-description = "Python Database Connection Project"
+version = "0.1"
+description = "A database connection library"
 authors = [
     { name = "Peter Heller", email = "pheller@qc.cuny.edu" },
 ]
 dependencies = [
-    "psycopg2-binary>=2.9.1",
-    "python-dotenv>=1.0.0",
-    "pydantic>=2.5.2",
-    "sqlalchemy>=2.0.23",
-]
-requires-python = ">=3.12"
-
-[build-system]
-requires = ["setuptools>=45", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-packages = [
-    "src",
-    "src.db_templates",
-    "docs",
-    "docs.db_templates",
-    "tests",
-    "zzzClaudeAI"
+    # Add your dependencies here
+    # For example: 'numpy', 'pandas'
 ]
 
-[tool.pytest.ini_options]
-pythonpath = [
-    "src",
-    "src/db_templates",
-    "docs",
-    "docs/db_templates",
-    "tests",
-    "zzzClaudeAI"
-]
-testpaths = [
-    "tests"
-]
-addopts = "-v -ra -q --doctest-modules"
+[tool.setuptools.packages.find]
+where = ["core"]  # Specify that the root of the package is the 'core' directory
 
-[tool.black]
-line-length = 88
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
-
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 88
-skip = [".gitignore", ".tox", ".venv"]
-
-[tool.mypy]
-python_version = "3.12"
-warn_return_any = true
-warn_unused_configs = true
-ignore_missing_imports = true
-follow_imports = "silent"
-check_untyped_defs = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_decorators = false
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-
-[[tool.mypy.overrides]]
-module = [
-    "tests.*",
-    "docs.*"
-]
-ignore_errors = true
-
-[tool.pylint.messages_control]
-disable = [
-    "C0111",  # missing-docstring
-    "C0103",  # invalid-name
-    "C0330",  # bad-continuation
-    "C0326",  # bad-whitespace
-    "W0621",  # redefined-outer-name
-    "W0614",  # unused-wildcard-import
-    "R0903",  # too-few-public-methods
-    "R0913",  # too-many-arguments
-    "R0914",  # too-many-locals
-]
-
-[tool.coverage.run]
-source = [
-    "src",
-    "src/db_templates",
-    "zzzClaudeAI"
-]
-omit = [
-    "tests/*",
-    "docs/*",
-    "*/__init__.py"
-]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if self.debug:",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "pass",
-    "raise ImportError"
-]
+[project.scripts]
+# Define any command-line scripts here if needed
+# pydbconnect = "core.module:main_function"

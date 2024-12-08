@@ -1,0 +1,24 @@
+ Volume in drive Z is Backup
+ Volume Serial Number is 7C21-6B2D
+
+ Directory of Z:\VSCODE Projects\PythonProjects\pydbconnect\pydbconnect
+
+12/08/2024  08:09 AM    <DIR>          .
+12/01/2024  12:13 PM    <DIR>          ..
+12/01/2024  07:52 AM               629 .env
+12/07/2024  01:07 PM             3,338 .gitignore
+11/24/2024  07:34 PM    <DIR>          .pytest_cache
+11/24/2024  06:26 PM    <DIR>          .venv-dbconnect
+11/24/2024  07:23 PM    <DIR>          .vscode
+12/08/2024  08:09 AM                 0 a.txt
+12/07/2024  12:39 PM    <DIR>          core
+11/30/2024  04:58 PM    <DIR>          optional
+12/08/2024  06:59 AM    <DIR>          pydbconnect.egg-info
+12/08/2024  07:10 AM               595 pyproject.toml
+11/17/2024  01:51 PM            41,665 README.md
+12/01/2024  12:17 PM               323 requirements.txt
+12/08/2024  07:09 AM               736 setuptools.py
+12/07/2024  12:35 PM    <DIR>          templates
+12/07/2024  12:35 PM    <DIR>          utils
+               7 File(s)         47,286 bytes
+              10 Dir(s)  393,064,398,848 bytes free

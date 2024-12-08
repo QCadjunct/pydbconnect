@@ -1,7 +1,4 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
@@ -9,6 +6,17 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        // Optional: Additional configuration for running a specific module
+        {
+            "name": "Python Debugger: Run Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "core.connector", // Replace with your actual module name
             "console": "integratedTerminal",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
