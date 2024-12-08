@@ -2,25 +2,43 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
+            "name": "Python: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            }
+            "console": "integratedTerminal"
         },
-        // Optional: Additional configuration for running a specific module
         {
-            "name": "Python Debugger: Run Module",
+            "name": "Debug complex_multi_db_transfer.py",
             "type": "debugpy",
             "request": "launch",
-            "module": "core.connector", // Replace with your actual module name
+            "module": "core.examples.complex_multi_db_transfer",
             "console": "integratedTerminal",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            }
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Debug simple_multi_db_sync.py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "core.examples.simple_multi_db_sync",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Debug Simple example using two DatabaseConnector instances.py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "core.examples.Simple_example_using_two_DatabaseConnector_instances",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Debug connector.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/core/connector.py",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env"
         }
     ]
 }
