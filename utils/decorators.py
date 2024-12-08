@@ -18,34 +18,23 @@ def preload_parameters(preload_method: Callable) -> Callable:
 
     def decorator(method: Callable) -> Callable:
         @wraps(method)
-        def wrapper(self, **custom_: Any) -> Any:
-            # Validate method exists and returns dict
+        def wrapper(self, **params: Any) -> Any:
+            # Validate preload method
             if not callable(preload_method):
                 raise ValueError("preload_method must be callable")
 
             # Get default parameters
-            default_ = preload_method(self)
-            if not isinstance(default_, dict):
+            default_params = preload_method(self)
+            if not isinstance(default_params, dict):
                 raise TypeError("preload_method must return a dictionary")
 
-            # Merge parameters, with custom taking precedence
-            merged_ = default_.copy()
-            merged_.update(custom_)
+            # Create new params dict with defaults
+            merged_params = default_params.copy()
+            # Update with any passed params
+            merged_params.update(params)
 
-            # Validate required parameters
-            sig = signature(method)
-            required_ = {
-                name
-                for name, param in sig.parameters.items()
-                if param.default == param.empty and param.name != "self"
-            }
-            missing_ = required_ - merged_.keys()
-            if missing_:
-                raise ValueError(
-                    f"Missing required parameters in @preload descriptor.py: {missing_}"
-                )
-
-            return method(self, **merged_)
+            # Call the method with merged parameters
+            return method(self, **merged_params)
 
         return wrapper
 

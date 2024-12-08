@@ -170,20 +170,45 @@ class DatabaseConnector:
     def _build_connection_string(self, params: Dict[str, Any]) -> str:
         """Build connection string from parameters."""
         try:
-            template = (
-                self.engine_config["DSN_TEMPLATE"]
-                if self.target_database_engine_connect_option.uses_dsn
-                else self.engine_config["CONNECTION_TEMPLATE"]
-            )
-            return template.format(**params)
+            # Get the correct config
+            engine_config = self.engine_config[self.target_database_engine_name]
+
+            if self.target_database_engine_connect_option.uses_dsn:
+                # Get DSN connection string using the lambda
+                connection_string = engine_config["FINALIZED_CONNECTION_PARAMS"][
+                    "LAMBDA_FINALIZED_DSN_CONNECTION_STRING"
+                ](self.engine_config)
+            else:
+                # Get base connection string using the lambda
+                connection_string = engine_config["FINALIZED_CONNECTION_PARAMS"][
+                    "LAMBDA_FINALIZED_BASE_CONNECTION_STRING"
+                ](self.engine_config)
+
+            if connection_string is None:
+                raise DatabaseError(
+                    "Connection string generation not supported for this database type"
+                )
+
+            return connection_string
         except KeyError as e:
             raise DatabaseError(f"Invalid connection parameter: {e}")
+        except Exception as e:
+            raise DatabaseError(f"Failed to build connection string: {str(e)}")
 
     @preload_parameters(_get_default_parameters)
     def finalization_of_connection_parameters(self, **params) -> "DatabaseConnector":
         """Finalize connection parameters."""
         try:
-            if self.engine_config["REQUIRES_CREDENTIALS"]:
+            # Check if engine config exists
+            if not self.engine_config:
+                raise DatabaseError("Engine configuration is missing")
+
+            # Get the correct path to REQUIRES_CREDENTIALS
+            requires_credentials = self.engine_config[self.target_database_engine_name][
+                "CREATE_DATABASE_CONNECTION"
+            ]["REQUIRES_CREDENTIALS"]
+
+            if requires_credentials:
                 if not all(
                     [self._credentials["username"], self._credentials["password"]]
                 ):
@@ -200,8 +225,10 @@ class DatabaseConnector:
 
             self._connection_string = self._build_connection_string(params)
             return self
+        except KeyError as e:
+            raise DatabaseError(f"Missing configuration key: {str(e)}")
         except Exception as e:
-            raise DatabaseError(f"Failed to finalize connection parameters: {e}")
+            raise DatabaseError(f"Failed to finalize connection parameters: {str(e)}")
 
     def connect_to_database(self) -> "DatabaseConnector":
         """Establish database connection."""
@@ -211,11 +238,17 @@ class DatabaseConnector:
         try:
             # Load module if not already loaded
             if not self._module:
-                module_name = self.engine_config["MODULE"]
+                module_name = self.engine_config[self.target_database_engine_name][
+                    "CRUDBASIC"
+                ]["IMPORT"]
                 self._module = importlib.import_module(module_name)
 
-            # Create connection
-            self._connection = self._module.connect(self._connection_string)
+            # Create connection using the lambda from engine config
+            connection_lambda = self.engine_config[self.target_database_engine_name][
+                "CREATE_DATABASE_CONNECTION"
+            ]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](self._connection_string)
+
+            self._connection = connection_lambda()
 
             # Update state
             self.is_database_active = True
@@ -228,7 +261,7 @@ class DatabaseConnector:
             self._connection = None
             self._module = None
             self.is_database_active = False
-            raise ConnectionError(f"Failed to connect: {e}")
+            raise ConnectionError(f"Failed to connect: {str(e)}")
 
     @contextmanager
     def _cursor(self):
@@ -396,6 +429,61 @@ class DatabaseConnector:
         self.close()
 
 
+# def main():
+#     """MSSQL connection demonstration."""
+#     try:
+#         # Initialize connector
+#         db = DatabaseConnector(
+#             target_database_engine=TargetDatabaseEngine.MSSQL,
+#             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
+#         )
+
+#         # Proper method chaining
+#         with (
+#             db.set_credentials_based_on_connect_option()
+#             .finalization_of_connection_parameters(
+#                 server="127.0.0.1", port=13001, database="AdventureWorks2019"
+#             )
+#             .connect_to_database() as conn
+#         ):
+#             # Test 1: Check SQL Server Version
+#             print("\nSQL Server Version:")
+#             version_result = conn.execute_query_to_prettytable(
+#                 "SELECT @@VERSION as Version", print_result=True
+#             )
+
+#             # Test 2: Verify Version Again
+#             print("\nVerifying Version Again:")
+#             version_verify = conn.execute_query_to_prettytable(
+#                 "SELECT @@VERSION as Version", print_result=True
+#             )
+
+#             # Test 3: Query Product Inventory
+#             print("\nQuerying Product Inventory:")
+#             inventory_result = conn.execute_query_to_prettytable(
+#                 """
+#                 SELECT *
+#                 FROM [AdventureWorks2019].[Production].[ProductInventory]
+#                 """,
+#                 print_result=True,
+#             )
+
+#     except ConnectionError as e:
+#         print(f"Connection error: {e}")
+#     except DatabaseError as e:
+#         print(f"Database error: {e}")
+#     except Exception as e:
+#         print(f"Unexpected error: {e}")
+#     finally:
+#         if "db" in locals():
+#             db.close()
+#         print("\nTest completed and connection closed.")
+
+
+# if __name__ == "__main__":
+#     main()
+
+
 def main():
     """MSSQL connection demonstration."""
     try:
@@ -413,30 +501,81 @@ def main():
             )
             .connect_to_database() as conn
         ):
+            print("\nStarting CRUD Operations Test:")
 
-            # Create test table with proper connection checks
-            with conn._cursor() as cursor:
-                try:
-                    cursor.execute(
-                        """
-                        CREATE TABLE test (
-                            id INTEGER PRIMARY KEY,
-                            value TEXT
-                        )
-                    """
-                    )
-                    if conn.is_database_active and conn._connection:
-                        conn._connection.commit()
-                    else:
-                        raise ConnectionError("Database connection lost")
-                except Exception as e:
-                    if conn.is_database_active and conn._connection:
-                        conn._connection.rollback()
-                    raise DatabaseError(f"Failed to create table: {e}")
+            # Create Schema
+            print("\n1. Creating Schema:")
+            conn.execute_ddl(
+                """
+                IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Aproduction') 
+                BEGIN
+                    EXEC('CREATE SCHEMA [Aproduction]')
+                END
+                """
+            )
+            print("Schema created successfully.")
 
-            # Test the connection
-            result = conn.execute_query_to_prettytable(
-                "SELECT @@VERSION as Version", print_result=True
+            # Create Table with Data
+            print("\n2. Creating Table with Data:")
+            conn.execute_ddl(
+                """
+                IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductInventory' AND schema_name(schema_id) = 'Aproduction')
+                    DROP TABLE [Aproduction].[ProductInventory]
+
+                SELECT  ProductID,
+                        LocationID,
+                        Shelf,
+                        Bin,
+                        Quantity,
+                        rowguid,
+                        ModifiedDate 
+                INTO [Aproduction].[ProductInventory]
+                FROM [AdventureWorks2019].[Production].[ProductInventory]
+                """
+            )
+            print("Table created and populated successfully.")
+
+            # verify table creation and initial data
+            print("\n3. initial quantity values:")
+            conn.execute_query_to_prettytable(
+                """
+                select top 10
+                    productid,
+                    locationid,
+                    quantity
+                from [aproduction].[productinventory]
+                order by productid
+                """,
+                print_result=True,
+            )
+
+            # update data
+            print("\n4. updating quantities:")
+            conn.execute_ddl(
+                """
+                update [aproduction].[productinventory]
+                set quantity = quantity + 30
+                where (productid % 2 = 1);
+                """
+            )
+            print("update completed successfully.")
+
+            # verify the update
+            print("\n5. updated quantity values:")
+            conn.execute_query_to_prettytable(
+                """
+                select top 10
+                    productid,
+                    locationid,
+                    quantity,
+                    case
+                        when productid % 2 = 1 then 'updated (+30)'
+                        else 'not updated'
+                    end as status
+                from [aproduction].[productinventory]
+                order by productid
+                """,
+                print_result=True,
             )
 
     except ConnectionError as e:
@@ -445,6 +584,10 @@ def main():
         print(f"Database error: {e}")
     except Exception as e:
         print(f"Unexpected error: {e}")
+    finally:
+        if "db" in locals():
+            db.close()
+        print("\nTest completed and connection closed.")
 
 
 if __name__ == "__main__":
