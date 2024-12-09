@@ -130,11 +130,6 @@ class DatabaseConnector:
                 f"DSN not supported by {self.target_database_engine_name}"
             )
 
-    def _get_default_parameters(self) -> Dict[str, Any]:
-        """Get default connection parameters from engine config."""
-        config = self.engine_config[self.target_database_engine_name]
-        return config["DEFAULT_PARAMETERS"].copy()
-
     def set_credentials_based_on_connect_option(self) -> "DatabaseConnector":
         """
         Set database credentials based on connection option.
@@ -167,48 +162,76 @@ class DatabaseConnector:
             )
         return self
 
-    def _build_connection_string(self, params: Dict[str, Any]) -> str:
-        """Build connection string from parameters."""
-        try:
-            # Get the correct config
-            engine_config = self.engine_config[self.target_database_engine_name]
+    def _get_default_parameters(self) -> Dict[str, Any]:
+        """Get dynamic default parameters from engine config."""
+        config = self.engine_config[self.target_database_engine_name]
+        format_config = config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]
 
+        # Choose parameter loading method based on connection type
+        if self.target_database_engine_connect_option.uses_dsn:
+            param_keys = format_config["LOAD_DSN_PARAMETER_KEYS"]
+        else:
+            param_keys = format_config["LOAD_DEFAULT_PARAMETER_KEYS"]
+
+        # Load only the required parameters for this connection type
+        return {key: config["DEFAULT_PARAMETERS"].get(key) for key in param_keys}
+
+    def _build_connection_string(self, params: Dict[str, Any]) -> str:
+        """Build connection string using provided parameters."""
+        try:
+            # Get the engine template directly
+            engine_template = getattr(templates, self.target_database_engine_name)
+
+            # Access the engine's configuration properly
+            # Note: engine_template already has the target engine name as the top level key
             if self.target_database_engine_connect_option.uses_dsn:
-                # Get DSN connection string using the lambda
-                connection_string = engine_config["FINALIZED_CONNECTION_PARAMS"][
-                    "LAMBDA_FINALIZED_DSN_CONNECTION_STRING"
-                ](self.engine_config)
+                connection_string = engine_template[self.target_database_engine_name][
+                    "FINALIZED_CONNECTION_PARAMS"
+                ]["LAMBDA_FINALIZED_DSN_CONNECTION_STRING"](engine_template)
             else:
-                # Get base connection string using the lambda
-                connection_string = engine_config["FINALIZED_CONNECTION_PARAMS"][
-                    "LAMBDA_FINALIZED_BASE_CONNECTION_STRING"
-                ](self.engine_config)
+                # Update the template parameters with our overrides
+                engine_template[self.target_database_engine_name][
+                    "DEFAULT_PARAMETERS"
+                ].update(params)
+                connection_string = engine_template[self.target_database_engine_name][
+                    "FINALIZED_CONNECTION_PARAMS"
+                ]["LAMBDA_FINALIZED_BASE_CONNECTION_STRING"](engine_template)
 
             if connection_string is None:
-                raise DatabaseError(
-                    "Connection string generation not supported for this database type"
-                )
+                raise DatabaseError("Connection string generation not supported")
 
             return connection_string
+
         except KeyError as e:
-            raise DatabaseError(f"Invalid connection parameter: {e}")
+            raise DatabaseError(f"Missing required parameter: {e}")
         except Exception as e:
-            raise DatabaseError(f"Failed to build connection string: {str(e)}")
+            raise DatabaseError(f"Connection string error: {str(e)}")
 
     @preload_parameters(_get_default_parameters)
     def finalization_of_connection_parameters(self, **params) -> "DatabaseConnector":
-        """Finalize connection parameters."""
+        """Finalize connection parameters using engine's parameter loading methods."""
         try:
-            # Check if engine config exists
-            if not self.engine_config:
-                raise DatabaseError("Engine configuration is missing")
+            engine_config = self.engine_config[self.target_database_engine_name]
+            format_config = engine_config["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]
 
-            # Get the correct path to REQUIRES_CREDENTIALS
-            requires_credentials = self.engine_config[self.target_database_engine_name][
-                "CREATE_DATABASE_CONNECTION"
-            ]["REQUIRES_CREDENTIALS"]
+            # Get the appropriate parameter loading method
+            if self.target_database_engine_connect_option.uses_dsn:
+                load_method = format_config["METHOD_LOAD_DSN_PARAMETER_KEYS_DICT"]
+            else:
+                load_method = format_config["METHOD_LOAD_DEFAULT_PARAMETER_KEYS_DICT"]
 
-            if requires_credentials:
+            # Load default parameters using engine's method
+            default_params = load_method(
+                self.target_database_engine_name, self.engine_config
+            )
+
+            # Update with any custom parameters
+            default_params.update(params)
+
+            # Add credentials if required
+            if engine_config["CREATE_DATABASE_CONNECTION"]["REQUIRES_CREDENTIALS"]:
                 if not all(
                     [self._credentials["username"], self._credentials["password"]]
                 ):
@@ -216,15 +239,16 @@ class DatabaseConnector:
                         "Username and password required but not provided"
                     )
 
-                params.update(
+                default_params.update(
                     {
-                        "username": self._credentials["username"],
-                        "password": self._credentials["password"],
+                        "USERNAME": self._credentials["username"],
+                        "PASSWORD": self._credentials["password"],
                     }
                 )
 
-            self._connection_string = self._build_connection_string(params)
+            self._connection_string = self._build_connection_string(default_params)
             return self
+
         except KeyError as e:
             raise DatabaseError(f"Missing configuration key: {str(e)}")
         except Exception as e:
@@ -484,99 +508,179 @@ class DatabaseConnector:
 #     main()
 
 
+# def main():
+#     """MSSQL connection demonstration."""
+#     try:
+#         # Initialize connector
+#         db = DatabaseConnector(
+#             target_database_engine=TargetDatabaseEngine.MSSQL,
+#             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
+#         )
+
+#         # Proper method chaining
+#         with (
+#             db.set_credentials_based_on_connect_option()
+#             .finalization_of_connection_parameters(
+#                 SERVER="127.0.0.1", PORT_NUMBER=13001, DATABASE_NAME="AdventureWorks2019"
+#             )
+#             .connect_to_database() as conn
+#         ):
+#             print("\nStarting CRUD Operations Test:")
+
+#             # Create Schema
+#             print("\n1. Creating Schema:")
+#             conn.execute_ddl(
+#                 """
+#                 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Aproduction')
+#                 BEGIN
+#                     EXEC('CREATE SCHEMA [Aproduction]')
+#                 END
+#                 """
+#             )
+#             print("Schema created successfully.")
+
+#             # Create Table with Data
+#             print("\n2. Creating Table with Data:")
+#             conn.execute_ddl(
+#                 """
+#                 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductInventory' AND schema_name(schema_id) = 'Aproduction')
+#                     DROP TABLE [Aproduction].[ProductInventory]
+
+#                 SELECT  ProductID,
+#                         LocationID,
+#                         Shelf,
+#                         Bin,
+#                         Quantity,
+#                         rowguid,
+#                         ModifiedDate
+#                 INTO [Aproduction].[ProductInventory]
+#                 FROM [Production].[ProductInventory]
+#                 """
+#             )
+#             print("Table created and populated successfully.")
+
+#             # verify table creation and initial data
+#             print("\n3. initial quantity values:")
+#             conn.execute_query_to_prettytable(
+#                 """
+#                 select top 10
+#                     productid,
+#                     locationid,
+#                     quantity
+#                 from [aproduction].[productinventory]
+#                 order by productid
+#                 """,
+#                 print_result=True,
+#             )
+
+#             # update data
+#             print("\n4. updating quantities:")
+#             conn.execute_ddl(
+#                 """
+#                 update [aproduction].[productinventory]
+#                 set quantity = quantity + 30
+#                 where (productid % 2 = 1);
+#                 """
+#             )
+#             print("update completed successfully.")
+
+#             # verify the update
+#             print("\n5. updated quantity values:")
+#             conn.execute_query_to_prettytable(
+#                 """
+#                 select top 10
+#                     productid,
+#                     locationid,
+#                     quantity,
+#                     case
+#                         when productid % 2 = 1 then 'updated (+30)'
+#                         else 'not updated'
+#                     end as status
+#                 from [aproduction].[productinventory]
+#                 order by productid
+#                 """,
+#                 print_result=True,
+#             )
+
+#     except ConnectionError as e:
+#         print(f"Connection error: {e}")
+#     except DatabaseError as e:
+#         print(f"Database error: {e}")
+#     except Exception as e:
+#         print(f"Unexpected error: {e}")
+#     finally:
+#         if "db" in locals():
+#             db.close()
+#         print("\nTest completed and connection closed.")
+
+
+# if __name__ == "__main__":
+#     main()
 def main():
     """MSSQL connection demonstration."""
     try:
         # Initialize connector
         db = DatabaseConnector(
             target_database_engine=TargetDatabaseEngine.MSSQL,
-            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
+            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.CustomizeFormatAndDefaultUserPwd,
         )
 
         # Proper method chaining
         with (
             db.set_credentials_based_on_connect_option()
             .finalization_of_connection_parameters(
-                server="127.0.0.1", port=13001, database="AdventureWorks2019"
+                SERVER="127.0.0.1", PORT_NUMBER=13001, DATABASE_NAME="AdventOfSQL"
             )
             .connect_to_database() as conn
         ):
-            print("\nStarting CRUD Operations Test:")
 
-            # Create Schema
-            print("\n1. Creating Schema:")
-            conn.execute_ddl(
-                """
-                IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Aproduction') 
-                BEGIN
-                    EXEC('CREATE SCHEMA [Aproduction]')
-                END
-                """
+            # test 1: check sql server version and CurrentDatabase
+            print("\n1. sql server version:")
+            version_result = conn.execute_query_to_prettytable(
+                "select @@version as version,db_name() as CurrentDatabase",
+                print_result=True,
             )
-            print("Schema created successfully.")
 
-            # Create Table with Data
-            print("\n2. Creating Table with Data:")
-            conn.execute_ddl(
-                """
-                IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductInventory' AND schema_name(schema_id) = 'Aproduction')
-                    DROP TABLE [Aproduction].[ProductInventory]
-
-                SELECT  ProductID,
-                        LocationID,
-                        Shelf,
-                        Bin,
-                        Quantity,
-                        rowguid,
-                        ModifiedDate 
-                INTO [Aproduction].[ProductInventory]
-                FROM [AdventureWorks2019].[Production].[ProductInventory]
-                """
-            )
-            print("Table created and populated successfully.")
+            print("\nStarting AdventoSQL Day 5:")
 
             # verify table creation and initial data
-            print("\n3. initial quantity values:")
+            print("\n2. AdventOfSQL Day 5:")
             conn.execute_query_to_prettytable(
                 """
-                select top 10
-                    productid,
-                    locationid,
-                    quantity
-                from [aproduction].[productinventory]
-                order by productid
-                """,
+                    SELECT tp.production_date as ProductionDate,
+                        lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
+                        tp.toys_produced as ToysProduced,
+                        lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
+                        tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
+                        format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
+                        tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
+                        format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
+                        row_number() over(order by tp.production_date desc) as row_number
+                        from  Day5.toy_production as tp
+                    order by tp.production_date desc,PreviousToysProduced
+        """,
                 print_result=True,
             )
 
-            # update data
-            print("\n4. updating quantities:")
-            conn.execute_ddl(
-                """
-                update [aproduction].[productinventory]
-                set quantity = quantity + 30
-                where (productid % 2 = 1);
-                """
-            )
-            print("update completed successfully.")
+            # # # verify table creation and initial data
+            # # print("\n2. AdventOfSQL Day 5:")
+            # # conn.execute_query_to_dataframe(
+            # #     """
 
-            # verify the update
-            print("\n5. updated quantity values:")
-            conn.execute_query_to_prettytable(
-                """
-                select top 10
-                    productid,
-                    locationid,
-                    quantity,
-                    case
-                        when productid % 2 = 1 then 'updated (+30)'
-                        else 'not updated'
-                    end as status
-                from [aproduction].[productinventory]
-                order by productid
-                """,
-                print_result=True,
-            )
+            # #         SELECT tp.production_date as ProductionDate,
+            # #             lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
+            # #             tp.toys_produced as ToysProduced,
+            # #             lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
+            # #             tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
+            # #             format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
+            # #             tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
+            # #             format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
+            # #             row_number() over(order by tp.production_date desc) as df_index
+            # #             from  Day5.toy_production as tp
+            # #         order by tp.production_date desc,PreviousToysProduced
+            # #     """,
+            # #     index_col="df_index",
+            # # )
 
     except ConnectionError as e:
         print(f"Connection error: {e}")

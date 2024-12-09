@@ -73,8 +73,8 @@ MSSQL: Dict[str, Dict[str, Any]] = {
     "MSSQL": {
         "DEFAULT_PARAMETERS": {
             "DRIVER": "{ODBC Driver 17 for SQL Server}",
-            "DSN_NAME": "Northwinds2024StudentDSN",
-            "DATABASE_NAME": "Northwinds2024Student",
+            "DSN_NAME": "AdventureWorks2019DSN",
+            "DATABASE_NAME": "AdventureWorks2019",
             "SERVER": "localhost",
             "PORT_NUMBER": 13001,
             "USERNAME": "sa",
@@ -139,10 +139,10 @@ MYSQL: Dict[str, Dict[str, Any]] = {
             "SERVER": "localhost",
             "PORT_NUMBER": 20101,
             "DATABASE_NAME": "NorthwindOrderSubsystem",
-            "USERNAME": "root",
-            "PASSWORD": "Password",
             "MULTI_HOST": 1,
             "CHARSET": "utf8mb4",
+            "USERNAME": "root",
+            "PASSWORD": "Password",
             "FORMAT_CONNECTION_STRING": {
                 "LOAD_DEFAULT_PARAMETER_KEYS": [
                     "DRIVER",
