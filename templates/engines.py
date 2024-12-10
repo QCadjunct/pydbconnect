@@ -128,6 +128,21 @@ MSSQL: Dict[str, Dict[str, Any]] = {
                 finalized_parameter_connection_string
             ),
         },
+        "TRANSACTION_MANAGEMENT": {
+            "IS_ISOLATION_SUPPORTED": True,
+            "GET_ISOLATION_LEVEL_QUERY": """
+                SELECT CASE transaction_isolation_level 
+                    WHEN 0 THEN 'UNSPECIFIED'
+                    WHEN 1 THEN 'READ UNCOMMITTED' 
+                    WHEN 2 THEN 'READ COMMITTED'
+                    WHEN 3 THEN 'REPEATABLE READ'
+                    WHEN 4 THEN 'SERIALIZABLE'
+                    WHEN 5 THEN 'SNAPSHOT'
+                END AS TRANSACTION_ISOLATION_LEVEL
+                FROM sys.dm_exec_sessions 
+                WHERE session_id = @@SPID
+            """,
+        },
     }
 }
 
@@ -194,6 +209,10 @@ MYSQL: Dict[str, Dict[str, Any]] = {
                 finalized_parameter_connection_string
             ),
         },
+        "IS_ISOLATION_SUPPORTED": True,
+        "TRANSACTION_MANAGEMENT": {
+            "GET_ISOLATION_LEVEL_QUERY": "SHOW TRANSACTION ISOLATION LEVEL"
+        },
     }
 }
 
@@ -259,6 +278,18 @@ POSTGRESQL: Dict[str, Dict[str, Any]] = {
                 finalized_parameter_connection_string
             ),
         },
+        "TRANSACTION_MANAGEMENT": {
+            "IS_ISOLATION_SUPPORTED": True,
+            "GET_ISOLATION_LEVEL_QUERY": """
+                SELECT CASE current_setting('transaction_isolation') 
+                    WHEN 'read uncommitted' THEN 'READ UNCOMMITTED'
+                    WHEN 'read committed' THEN 'READ COMMITTED'
+                    WHEN 'repeatable read' THEN 'REPEATABLE READ'
+                    WHEN 'serializable' THEN 'SERIALIZABLE'
+                    ELSE 'SNAPSHOT'  -- PostgreSQL does not have a SNAPSHOT isolation level by default
+                END AS TRANSACTION_ISOLATION_LEVEL;
+            """,
+        },
     }
 }
 
@@ -312,6 +343,13 @@ SQLITE3: Dict[str, Dict[str, Any]] = {
                 finalized_parameter_connection_string
             ),
         },
+        "TRANSACTION_MANAGEMENT": {
+            "IS_ISOLATION_SUPPORTED": False,
+            "GET_ISOLATION_LEVEL_QUERY": """
+                SELECT 'READ UNCOMMITTED' AS TRANSACTION_ISOLATION_LEVEL;
+                -- This is a placeholder. SQLite does not natively support this kind of query.
+            """,
+        },
     }
 }
 
@@ -357,6 +395,18 @@ DUCKDB: Dict[str, Dict[str, Any]] = {
             ).connect(
                 finalized_parameter_connection_string
             ),
+        },
+        "TRANSACTION_MANAGEMENT": {
+            "IS_ISOLATION_SUPPORTED": True,
+            "GET_ISOLATION_LEVEL_QUERY": """
+                SELECT 
+                    CASE current_setting('isolation_level') 
+                        WHEN 'read uncommitted' THEN 'READ UNCOMMITTED'
+                        WHEN 'read committed' THEN 'READ COMMITTED'
+                        WHEN 'serializable' THEN 'SERIALIZABLE'
+                        ELSE 'UNKNOWN'
+                    END AS TRANSACTION_ISOLATION_LEVEL
+                """,
         },
     }
 }
@@ -406,6 +456,18 @@ PSYCOPG2: Dict[str, Dict[str, Any]] = {
             ).connect(
                 finalized_parameter_connection_string
             ),
+        },
+        "TRANSACTION_MANAGEMENT": {
+            "IS_ISOLATION_SUPPORTED": True,
+            "GET_ISOLATION_LEVEL_QUERY": """
+                SELECT CASE current_setting('transaction_isolation') 
+                    WHEN 'read uncommitted' THEN 'READ UNCOMMITTED'
+                    WHEN 'read committed' THEN 'READ COMMITTED'
+                    WHEN 'repeatable read' THEN 'REPEATABLE READ'
+                    WHEN 'serializable' THEN 'SERIALIZABLE'
+                    ELSE 'SNAPSHOT'  -- PostgreSQL does not have a SNAPSHOT isolation level by default
+                END AS TRANSACTION_ISOLATION_LEVEL;
+            """,
         },
     }
 }

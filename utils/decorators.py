@@ -4,6 +4,10 @@ from typing import Dict, Any, Callable
 from functools import wraps
 from inspect import signature
 
+# Import needed custom types
+from templates.constraints import IsolationLevel
+from templates.exceptions import DatabaseError, ConnectionError
+
 
 def preload_parameters(preload_method: Callable) -> Callable:
     """
@@ -62,3 +66,65 @@ def ensure_connected(f: Callable) -> Callable:
         return f(self, *args, **kwargs)
 
     return wrapper
+
+
+def with_isolation_level(isolation_level: IsolationLevel):
+    """Decorator for setting isolation level."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if not self._connection:
+                raise ConnectionError("No database connection")
+
+            # Store current isolation level
+            original_level = self._get_current_isolation_level()
+
+            try:
+                # Set new isolation level
+                with self._cursor() as cursor:
+                    cursor.execute(isolation_level.get_sql_statement())
+                return func(self, *args, **kwargs)
+            finally:
+                # Restore original isolation level
+                if original_level:
+                    with self._cursor() as cursor:
+                        cursor.execute(original_level.get_sql_statement())
+
+        return wrapper
+
+    return decorator
+
+
+def transactional(nested: bool = False):
+    """Decorator for transaction control."""
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if not self._connection:
+                raise ConnectionError("No database connection")
+
+            if nested and not self._transaction_active:
+                raise DatabaseError("No active transaction for nested operation")
+
+            savepoint_name = None
+            if nested:
+                savepoint_name = f"SP_{func.__name__}_{id(func)}"
+                self.create_savepoint(savepoint_name)
+
+            try:
+                result = func(self, *args, **kwargs)
+                if not nested:
+                    self.commit()
+                return result
+            except Exception as e:
+                if nested and savepoint_name:
+                    self.rollback_to_savepoint(savepoint_name)
+                else:
+                    self.rollback()
+                raise e
+
+        return wrapper
+
+    return decorator

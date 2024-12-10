@@ -1,6 +1,7 @@
 # Description: Database connector implementation.
 """Database Connector Implementation."""
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, Type, Union
+from types import TracebackType
 from contextlib import contextmanager
 import importlib
 import pandas as pd
@@ -10,6 +11,9 @@ from getpass import getpass
 from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
+from templates.constraints import IsolationLevel
+
+from core.exceptions import DatabaseError, ConnectionError
 
 import sys
 from pathlib import Path
@@ -22,6 +26,7 @@ from templates.constraints import (
     ChangeDefaultUsernameAndPassword,
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
+    IsolationLevel,
 )
 
 
@@ -58,6 +63,10 @@ class DatabaseConnector:
         self.target_database_engine_connect_option = (
             target_database_engine_connect_option
         )
+        # Transactional methods
+        self._transaction_level = 0
+        self._savepoints = []
+        self._current_isolation = IsolationLevel.READ_COMMITTED
 
         # Connection state
         self._connection = None
@@ -446,161 +455,280 @@ class DatabaseConnector:
                 self.is_database_active = False
                 self.database_detached_at = datetime.now()
 
-    def __enter__(self) -> "DatabaseConnector":
+
+def begin_transaction(
+    self, isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED
+) -> None:
+    """Begin a transaction with specified isolation level."""
+    if not self._connection:
+        raise ConnectionError("No database connection")
+
+    try:
+        if isolation_level != self._current_isolation:
+            self.set_isolation_level(isolation_level)
+
+        self._connection.autocommit = False
+        self._transaction_level += 1
+        self._transaction_active = True
+
+        # Create savepoint for nested transactions
+        if self._transaction_level > 1:
+            self.create_savepoint(f"SP_LEVEL_{self._transaction_level}")
+    except Exception as e:
+        raise DatabaseError(f"Failed to begin transaction: {str(e)}")
+
+
+def commit(self) -> None:
+    """Commit current transaction level."""
+    if not self._connection:
+        raise ConnectionError("No database connection")
+
+    if not self._transaction_active:
+        raise DatabaseError("No active transaction")
+
+    try:
+        if self._transaction_level > 1:
+            # Release savepoint for nested transaction
+            self.release_savepoint(self._savepoints[-1])
+        else:
+            # Commit main transaction
+            self._connection.commit()
+            self._transaction_active = False
+
+        self._transaction_level -= 1
+    except Exception as e:
+        raise DatabaseError(f"Failed to commit transaction: {str(e)}")
+
+
+def rollback(self, savepoint_name: Optional[str] = None) -> None:
+    """Rollback to savepoint or full transaction."""
+    if not self._connection:
+        raise ConnectionError("No database connection")
+
+    if savepoint_name:
+        with self._cursor() as cursor:
+            cursor.execute(f"ROLLBACK TRANSACTION {savepoint_name}")
+    else:
+        self._connection.rollback()
+        self._transaction_level = 0
+        self._savepoints.clear()
+
+    def create_savepoint(self, name: str) -> None:
+        """Create a savepoint in the current transaction."""
+        if not self._transaction_active:
+            raise DatabaseError("No active transaction")
+
+        with self._cursor() as cursor:
+            cursor.execute(f"SAVE TRANSACTION {name}")
+
+    def rollback_to_savepoint(self, name: str) -> None:
+        """Rollback to a specific savepoint."""
+        if not self._transaction_active:
+            raise DatabaseError("No active transaction")
+
+        with self._cursor() as cursor:
+            cursor.execute(f"ROLLBACK TRANSACTION {name}")
+
+    def _get_current_isolation_level(self) -> Optional[IsolationLevel]:
+        """Get current isolation level."""
+        if not self._connection:
+            return None
+
+        try:
+            engine_config = self.engine_config[self.target_database_engine_name]
+            # Get isolation level query from engine configuration
+            isolation_query = engine_config.get("TRANSACTION_MANAGEMENT", {}).get(
+                "GET_ISOLATION_LEVEL_QUERY"
+            )
+
+            if not isolation_query:
+                return self._current_isolation
+
+            with self._cursor() as cursor:
+                cursor.execute(isolation_query)
+                result = cursor.fetchone()
+                return IsolationLevel(result[0].upper()) if result else None
+
+        except Exception as e:
+            raise DatabaseError(f"Failed to get isolation level: {str(e)}")
+
+    def __enter__(self):
+        """Simple context manager entry."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Simple context manager exit."""
         self.close()
 
 
+# # def main():
+# #     """mssql connection demonstration."""
+# #     try:
+# #         # initialize connector
+# #         db = databaseconnector(
+# #             target_database_engine=targetdatabaseengine.mssql,
+# #             target_database_engine_connect_option=targetdatabaseconnectionstringoption.defaultformatanddefaultuserpwd,
+# #         )
+
+# #         # proper method chaining
+# #         with (
+# #             db.set_credentials_based_on_connect_option()
+# #             .finalization_of_connection_parameters(
+# #                 server="127.0.0.1", port_number=13001, database_name="adventureworks2019"
+# #             )
+# #             .connect_to_database() as conn
+# #         ):
+# #             print("\nstarting crud operations test:")
+
+# #             # create schema
+# #             print("\n1. creating schema:")
+# #             conn.execute_ddl(
+# #                 """
+# #                 if not exists (select * from sys.schemas where name = 'aproduction')
+# #                 begin
+# #                     exec('create schema [aproduction]')
+# #                 end
+# #                 """
+# #             )
+# #             print("schema created successfully.")
+
+# #             # create table with data
+# #             print("\n2. creating table with data:")
+# #             conn.execute_ddl(
+# #                 """
+# #                 if exists (select * from sys.tables where name = 'productinventory' and schema_name(schema_id) = 'aproduction')
+# #                     drop table [aproduction].[productinventory]
+
+# #                 select  productid,
+# #                         locationid,
+# #                         shelf,
+# #                         bin,
+# #                         quantity,
+# #                         rowguid,
+# #                         modifieddate
+# #                 into [aproduction].[productinventory]
+# #                 from [production].[productinventory]
+# #                 """
+# #             )
+# #             print("table created and populated successfully.")
+
+# #             # verify table creation and initial data
+# #             print("\n3. initial quantity values:")
+# #             conn.execute_query_to_prettytable(
+# #                 """
+# #                 select top 10
+# #                     productid,
+# #                     locationid,
+# #                     quantity
+# #                 from [aproduction].[productinventory]
+# #                 order by productid
+# #                 """,
+# #                 print_result=true,
+# #             )
+
+# #             # update data
+# #             print("\n4. updating quantities:")
+# #             conn.execute_ddl(
+# #                 """
+# #                 update [aproduction].[productinventory]
+# #                 set quantity = quantity + 30
+# #                 where (productid % 2 = 1);
+# #                 """
+# #             )
+# #             print("update completed successfully.")
+
+# #             # verify the update
+# #             print("\n5. updated quantity values:")
+# #             conn.execute_query_to_prettytable(
+# #                 """
+# #                 select top 10
+# #                     productid,
+# #                     locationid,
+# #                     quantity,
+# #                     case
+# #                         when productid % 2 = 1 then 'updated (+30)'
+# #                         else 'not updated'
+# #                     end as status
+# #                 from [aproduction].[productinventory]
+# #                 order by productid
+# #                 """,
+# #                 print_result=true,
+# #             )
+
+# #     except connectionerror as e:
+# #         print(f"connection error: {e}")
+# #     except databaseerror as e:
+# #         print(f"database error: {e}")
+# #     except exception as e:
+# #         print(f"unexpected error: {e}")
+# #     finally:
+# #         if "db" in locals():
+# #             db.close()
+# #         print("\ntest completed and connection closed.")
+
+
+# # if __name__ == "__main__":
+# #     main()
 # def main():
 #     """MSSQL connection demonstration."""
 #     try:
 #         # Initialize connector
 #         db = DatabaseConnector(
 #             target_database_engine=TargetDatabaseEngine.MSSQL,
-#             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
+#             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.CustomizeFormatAndDefaultUserPwd,
 #         )
 
-#         # Proper method chaining
+#         # Original method chaining with context manager
 #         with (
-#             db.set_credentials_based_on_connect_option()
-#             .finalization_of_connection_parameters(
-#                 server="127.0.0.1", port=13001, database="AdventureWorks2019"
-#             )
-#             .connect_to_database() as conn
 #         ):
-#             # Test 1: Check SQL Server Version
-#             print("\nSQL Server Version:")
+
+#             # test 1: check sql server version and CurrentDatabase
+#             print("\n1. sql server version:")
 #             version_result = conn.execute_query_to_prettytable(
-#                 "SELECT @@VERSION as Version", print_result=True
-#             )
-
-#             # Test 2: Verify Version Again
-#             print("\nVerifying Version Again:")
-#             version_verify = conn.execute_query_to_prettytable(
-#                 "SELECT @@VERSION as Version", print_result=True
-#             )
-
-#             # Test 3: Query Product Inventory
-#             print("\nQuerying Product Inventory:")
-#             inventory_result = conn.execute_query_to_prettytable(
-#                 """
-#                 SELECT *
-#                 FROM [AdventureWorks2019].[Production].[ProductInventory]
-#                 """,
+#                 "select @@version as version,db_name() as CurrentDatabase",
 #                 print_result=True,
 #             )
 
-#     except ConnectionError as e:
-#         print(f"Connection error: {e}")
-#     except DatabaseError as e:
-#         print(f"Database error: {e}")
-#     except Exception as e:
-#         print(f"Unexpected error: {e}")
-#     finally:
-#         if "db" in locals():
-#             db.close()
-#         print("\nTest completed and connection closed.")
-
-
-# if __name__ == "__main__":
-#     main()
-
-
-# def main():
-#     """MSSQL connection demonstration."""
-#     try:
-#         # Initialize connector
-#         db = DatabaseConnector(
-#             target_database_engine=TargetDatabaseEngine.MSSQL,
-#             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
-#         )
-
-#         # Proper method chaining
-#         with (
-#             db.set_credentials_based_on_connect_option()
-#             .finalization_of_connection_parameters(
-#                 SERVER="127.0.0.1", PORT_NUMBER=13001, DATABASE_NAME="AdventureWorks2019"
-#             )
-#             .connect_to_database() as conn
-#         ):
-#             print("\nStarting CRUD Operations Test:")
-
-#             # Create Schema
-#             print("\n1. Creating Schema:")
-#             conn.execute_ddl(
-#                 """
-#                 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Aproduction')
-#                 BEGIN
-#                     EXEC('CREATE SCHEMA [Aproduction]')
-#                 END
-#                 """
-#             )
-#             print("Schema created successfully.")
-
-#             # Create Table with Data
-#             print("\n2. Creating Table with Data:")
-#             conn.execute_ddl(
-#                 """
-#                 IF EXISTS (SELECT * FROM sys.tables WHERE name = 'ProductInventory' AND schema_name(schema_id) = 'Aproduction')
-#                     DROP TABLE [Aproduction].[ProductInventory]
-
-#                 SELECT  ProductID,
-#                         LocationID,
-#                         Shelf,
-#                         Bin,
-#                         Quantity,
-#                         rowguid,
-#                         ModifiedDate
-#                 INTO [Aproduction].[ProductInventory]
-#                 FROM [Production].[ProductInventory]
-#                 """
-#             )
-#             print("Table created and populated successfully.")
+#             print("\nStarting AdventoSQL Day 5:")
 
 #             # verify table creation and initial data
-#             print("\n3. initial quantity values:")
+#             print("\n2. AdventOfSQL Day 5:")
 #             conn.execute_query_to_prettytable(
 #                 """
-#                 select top 10
-#                     productid,
-#                     locationid,
-#                     quantity
-#                 from [aproduction].[productinventory]
-#                 order by productid
-#                 """,
+#                     SELECT tp.production_date as ProductionDate,
+#                         lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
+#                         tp.toys_produced as ToysProduced,
+#                         lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
+#                         tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
+#                         format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
+#                         tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
+#                         format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
+#                         row_number() over(order by tp.production_date desc) as row_number
+#                         from  Day5.toy_production as tp
+#                     order by tp.production_date desc,PreviousToysProduced
+#         """,
 #                 print_result=True,
 #             )
 
-#             # update data
-#             print("\n4. updating quantities:")
-#             conn.execute_ddl(
-#                 """
-#                 update [aproduction].[productinventory]
-#                 set quantity = quantity + 30
-#                 where (productid % 2 = 1);
-#                 """
-#             )
-#             print("update completed successfully.")
+#             # # # verify table creation and initial data
+#             # # print("\n2. AdventOfSQL Day 5:")
+#             # # conn.execute_query_to_dataframe(
+#             # #     """
 
-#             # verify the update
-#             print("\n5. updated quantity values:")
-#             conn.execute_query_to_prettytable(
-#                 """
-#                 select top 10
-#                     productid,
-#                     locationid,
-#                     quantity,
-#                     case
-#                         when productid % 2 = 1 then 'updated (+30)'
-#                         else 'not updated'
-#                     end as status
-#                 from [aproduction].[productinventory]
-#                 order by productid
-#                 """,
-#                 print_result=True,
-#             )
+#             # #         SELECT tp.production_date as ProductionDate,
+#             # #             lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
+#             # #             tp.toys_produced as ToysProduced,
+#             # #             lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
+#             # #             tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
+#             # #             format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
+#             # #             tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
+#             # #             format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
+#             # #             row_number() over(order by tp.production_date desc) as df_index
+#             # #             from  Day5.toy_production as tp
+#             # #         order by tp.production_date desc,PreviousToysProduced
+#             # #     """,
+#             # #     index_col="df_index",
+#             # # )
 
 #     except ConnectionError as e:
 #         print(f"Connection error: {e}")
@@ -613,86 +741,5 @@ class DatabaseConnector:
 #             db.close()
 #         print("\nTest completed and connection closed.")
 
-
 # if __name__ == "__main__":
 #     main()
-def main():
-    """MSSQL connection demonstration."""
-    try:
-        # Initialize connector
-        db = DatabaseConnector(
-            target_database_engine=TargetDatabaseEngine.MSSQL,
-            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.CustomizeFormatAndDefaultUserPwd,
-        )
-
-        # Proper method chaining
-        with (
-            db.set_credentials_based_on_connect_option()
-            .finalization_of_connection_parameters(
-                SERVER="127.0.0.1", PORT_NUMBER=13001, DATABASE_NAME="AdventOfSQL"
-            )
-            .connect_to_database() as conn
-        ):
-
-            # test 1: check sql server version and CurrentDatabase
-            print("\n1. sql server version:")
-            version_result = conn.execute_query_to_prettytable(
-                "select @@version as version,db_name() as CurrentDatabase",
-                print_result=True,
-            )
-
-            print("\nStarting AdventoSQL Day 5:")
-
-            # verify table creation and initial data
-            print("\n2. AdventOfSQL Day 5:")
-            conn.execute_query_to_prettytable(
-                """
-                    SELECT tp.production_date as ProductionDate,
-                        lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
-                        tp.toys_produced as ToysProduced,
-                        lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
-                        tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
-                        format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
-                        tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
-                        format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
-                        row_number() over(order by tp.production_date desc) as row_number
-                        from  Day5.toy_production as tp
-                    order by tp.production_date desc,PreviousToysProduced
-        """,
-                print_result=True,
-            )
-
-            # # # verify table creation and initial data
-            # # print("\n2. AdventOfSQL Day 5:")
-            # # conn.execute_query_to_dataframe(
-            # #     """
-
-            # #         SELECT tp.production_date as ProductionDate,
-            # #             lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
-            # #             tp.toys_produced as ToysProduced,
-            # #             lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
-            # #             tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
-            # #             format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
-            # #             tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
-            # #             format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
-            # #             row_number() over(order by tp.production_date desc) as df_index
-            # #             from  Day5.toy_production as tp
-            # #         order by tp.production_date desc,PreviousToysProduced
-            # #     """,
-            # #     index_col="df_index",
-            # # )
-
-    except ConnectionError as e:
-        print(f"Connection error: {e}")
-    except DatabaseError as e:
-        print(f"Database error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-    finally:
-        if "db" in locals():
-            db.close()
-        print("\nTest completed and connection closed.")
-
-
-if __name__ == "__main__":
-    main()

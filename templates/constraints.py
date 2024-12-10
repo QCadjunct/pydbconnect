@@ -229,6 +229,60 @@ class InvalidConnectionOptionError(DatabaseConnectionError):
         super().__init__(message)
 
 
+from enum import Enum
+from typing import Dict
+
+
+class IsolationLevel(Enum):
+    """SQL Standard Isolation Levels with properties."""
+
+    UNSPECIFIED = "UNSPECIFIED"
+    READ_UNCOMMITTED = "READ UNCOMMITTED"
+    READ_COMMITTED = "READ COMMITTED"
+    REPEATABLE_READ = "REPEATABLE READ"
+    SERIALIZABLE = "SERIALIZABLE"
+    SNAPSHOT = "SNAPSHOT"
+    READ_COMMITTED_SNAPSHOT = "READ COMMITTED SNAPSHOT"
+    UNKNOWN = "UNKNOWN"
+
+    @classmethod
+    def from_string(cls, value: str) -> "IsolationLevel":
+        """Convert string to isolation level enum."""
+        try:
+            return cls(value.upper())
+        except ValueError:
+            return cls.UNKNOWN
+
+    @property
+    def dirty_reads(self) -> bool:
+        return self == IsolationLevel.READ_UNCOMMITTED
+
+    @property
+    def non_repeatable_reads(self) -> bool:
+        return self in [IsolationLevel.READ_UNCOMMITTED, IsolationLevel.READ_COMMITTED]
+
+    @property
+    def phantom_reads(self) -> bool:
+        return self in [
+            IsolationLevel.READ_UNCOMMITTED,
+            IsolationLevel.READ_COMMITTED,
+            IsolationLevel.REPEATABLE_READ,
+        ]
+
+    @property
+    def is_snapshot_based(self) -> bool:
+        return self in [IsolationLevel.SNAPSHOT, IsolationLevel.READ_COMMITTED_SNAPSHOT]
+
+    @classmethod
+    def get_default_level(cls) -> "IsolationLevel":
+        """Get default isolation level."""
+        return cls.READ_COMMITTED
+
+    def get_sql_statement(self) -> str:
+        """Get SQL to set this isolation level."""
+        return f"SET TRANSACTION ISOLATION LEVEL {self.value}"
+
+
 def test_enums():
     # Test accessing enum values
     print("\nTesting basic enum access:")
