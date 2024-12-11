@@ -1,7 +1,6 @@
-# Description: Database connector implementation.
 """Database Connector Implementation."""
-from typing import Dict, Any, Optional, Type, Union
-from types import TracebackType
+
+from typing import Dict, Any, Optional
 from contextlib import contextmanager
 import importlib
 import pandas as pd
@@ -11,18 +10,9 @@ from getpass import getpass
 from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
-from templates.constraints import IsolationLevel
-from utils.decorators import preload_parameters, ensure_connected
-
-import templates.engines as templates
-from templates.constraints import (
-    ChangeDefaultUsernameAndPassword,
-    TargetDatabaseEngine,
-    TargetDatabaseConnectionStringOption,
-    IsolationLevel,
-)
 
 
+# Exception definitions
 class DatabaseError(Exception):
     """Base exception for database operations."""
 
@@ -41,6 +31,16 @@ class CredentialsError(DatabaseError):
     pass
 
 
+# Import after exceptions to prevent circular imports
+from utils.decorators import preload_parameters, ensure_connected
+from templates.constraints import (
+    ChangeDefaultUsernameAndPassword,
+    TargetDatabaseEngine,
+    TargetDatabaseConnectionStringOption,
+)
+import templates.engines as templates
+
+
 class DatabaseConnector:
     """Database connector implementation."""
 
@@ -56,15 +56,10 @@ class DatabaseConnector:
         self.target_database_engine_connect_option = (
             target_database_engine_connect_option
         )
-        # Transactional methods
-        self._transaction_level = 0
-        self._savepoints = []
-        self._current_isolation = IsolationLevel.READ_COMMITTED
 
         # Connection state
         self._connection = None
         self._module = None
-        self._transaction_active = False
         self._credentials = {"username": None, "password": None, "is_default": True}
         self._connection_string = None
 
@@ -73,6 +68,7 @@ class DatabaseConnector:
         self.change_database_usr_and_pwd_option = (
             target_database_engine_connect_option.allow_credential_changes
         )
+
         # Validate DSN support
         self._validate_dsn_support()
 
@@ -94,17 +90,9 @@ class DatabaseConnector:
             ) from e
 
     def _load_environment(self) -> None:
-        """
-        Load environment variables from .env file.
-        Uses Path.cwd() to determine the relative location of the .env file.
-        """
-        # Get current working directory
-        cwd = Path.cwd()
+        """Load environment variables from .env file."""
+        env_path = Path.cwd() / ".env"
 
-        # Define .env path relative to current working directory
-        env_path = cwd / ".env"
-
-        # Check if .env exists and load it
         if env_path.exists():
             load_dotenv(env_path)
             if self.target_database_engine_name:
@@ -133,19 +121,14 @@ class DatabaseConnector:
             )
 
     def set_credentials_based_on_connect_option(self) -> "DatabaseConnector":
-        """
-        Set database credentials based on connection option.
-        Uses properties from TargetDatabaseConnectionStringOption to determine behavior.
-        """
+        """Set database credentials based on connection option."""
         credential_change = (
             self.target_database_engine_connect_option.allow_credential_changes
         )
-        # Check if credentials should not be changed (value == 1)
+
         if credential_change == 1:  # do_not_change_username_passord
-            # Keep default credentials from environment
             return self
 
-        # Handle credential changes for change_username_password (value == 2)
         credential_mode = self.target_database_engine_connect_option.changes_credentials
         if credential_mode.changes_default_credentials:
             show_password = (
@@ -169,29 +152,23 @@ class DatabaseConnector:
         config = self.engine_config[self.target_database_engine_name]
         format_config = config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]
 
-        # Choose parameter loading method based on connection type
         if self.target_database_engine_connect_option.uses_dsn:
             param_keys = format_config["LOAD_DSN_PARAMETER_KEYS"]
         else:
             param_keys = format_config["LOAD_DEFAULT_PARAMETER_KEYS"]
 
-        # Load only the required parameters for this connection type
         return {key: config["DEFAULT_PARAMETERS"].get(key) for key in param_keys}
 
     def _build_connection_string(self, params: Dict[str, Any]) -> str:
         """Build connection string using provided parameters."""
         try:
-            # Get the engine template directly
             engine_template = getattr(templates, self.target_database_engine_name)
 
-            # Access the engine's configuration properly
-            # Note: engine_template already has the target engine name as the top level key
             if self.target_database_engine_connect_option.uses_dsn:
                 connection_string = engine_template[self.target_database_engine_name][
                     "FINALIZED_CONNECTION_PARAMS"
                 ]["LAMBDA_FINALIZED_DSN_CONNECTION_STRING"](engine_template)
             else:
-                # Update the template parameters with our overrides
                 engine_template[self.target_database_engine_name][
                     "DEFAULT_PARAMETERS"
                 ].update(params)
@@ -218,21 +195,16 @@ class DatabaseConnector:
                 "FORMAT_CONNECTION_STRING"
             ]
 
-            # Get the appropriate parameter loading method
             if self.target_database_engine_connect_option.uses_dsn:
                 load_method = format_config["METHOD_LOAD_DSN_PARAMETER_KEYS_DICT"]
             else:
                 load_method = format_config["METHOD_LOAD_DEFAULT_PARAMETER_KEYS_DICT"]
 
-            # Load default parameters using engine's method
             default_params = load_method(
                 self.target_database_engine_name, self.engine_config
             )
-
-            # Update with any custom parameters
             default_params.update(params)
 
-            # Add credentials if required
             if engine_config["CREATE_DATABASE_CONNECTION"]["REQUIRES_CREDENTIALS"]:
                 if not all(
                     [self._credentials["username"], self._credentials["password"]]
@@ -262,27 +234,23 @@ class DatabaseConnector:
             raise ConnectionError("Connection string not prepared")
 
         try:
-            # Load module if not already loaded
             if not self._module:
                 module_name = self.engine_config[self.target_database_engine_name][
                     "CRUDBASIC"
                 ]["IMPORT"]
                 self._module = importlib.import_module(module_name)
 
-            # Create connection using the lambda from engine config
             connection_lambda = self.engine_config[self.target_database_engine_name][
                 "CREATE_DATABASE_CONNECTION"
             ]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](self._connection_string)
 
             self._connection = connection_lambda()
-
-            # Update state
             self.is_database_active = True
             self.database_attached_at = datetime.now()
             self.database_detached_at = None
-            self._transaction_active = False
 
             return self
+
         except Exception as e:
             self._connection = None
             self._module = None
@@ -345,98 +313,10 @@ class DatabaseConnector:
             except Exception as e:
                 raise DatabaseError(f"Query execution failed: {e}")
 
-    @ensure_connected
-    def insert(self, table: str, data: Dict[str, Any]) -> int:
-        """Insert single record."""
-        if not self._connection or not self.is_database_active:
-            raise ConnectionError("Database connection not active")
-
-        placeholder = self.engine_config["CRUDBASIC"]["PARAMETER_PLACEHOLDER"]
-        columns = ",".join(data.keys())
-        placeholders = ",".join([placeholder] * len(data))
-        query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders})"
-
-        with self._cursor() as cursor:
-            try:
-                cursor.execute(query, list(data.values()))
-                last_id = cursor.lastrowid
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.commit()
-                return last_id
-            except Exception as e:
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.rollback()
-                raise DatabaseError(f"Insert failed: {e}")
-
-    @ensure_connected
-    def update(self, table: str, data: Dict[str, Any], where: Dict[str, Any]) -> int:
-        """Update records."""
-        if not self._connection or not self.is_database_active:
-            raise ConnectionError("Database connection not active")
-
-        placeholder = self.engine_config["CRUDBASIC"]["PARAMETER_PLACEHOLDER"]
-        set_clause = ",".join(f"{k}={placeholder}" for k in data)
-        where_clause = " AND ".join(f"{k}={placeholder}" for k in where)
-        query = f"UPDATE {table} SET {set_clause} WHERE {where_clause}"
-
-        with self._cursor() as cursor:
-            try:
-                cursor.execute(query, list(data.values()) + list(where.values()))
-                rows_affected = cursor.rowcount
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.commit()
-                return rows_affected
-            except Exception as e:
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.rollback()
-                raise DatabaseError(f"Update failed: {e}")
-
-    @ensure_connected
-    def delete(self, table: str, where: Dict[str, Any]) -> int:
-        """Delete records."""
-        if not self._connection or not self.is_database_active:
-            raise ConnectionError("Database connection not active")
-
-        placeholder = self.engine_config["CRUDBASIC"]["PARAMETER_PLACEHOLDER"]
-        where_clause = " AND ".join(f"{k}={placeholder}" for k in where)
-        query = f"DELETE FROM {table} WHERE {where_clause}"
-
-        with self._cursor() as cursor:
-            try:
-                cursor.execute(query, list(where.values()))
-                rows_affected = cursor.rowcount
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.commit()
-                return rows_affected
-            except Exception as e:
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.rollback()
-                raise DatabaseError(f"Delete failed: {e}")
-
-    @ensure_connected
-    def execute_ddl(self, query: str) -> None:
-        """Execute DDL statement."""
-        if not self._connection or not self.is_database_active:
-            raise ConnectionError("Database connection not active")
-
-        with self._cursor() as cursor:
-            try:
-                cursor.execute(query)
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.commit()
-            except Exception as e:
-                if self._connection and not getattr(self._connection, "closed", False):
-                    self._connection.rollback()
-                raise DatabaseError(f"DDL execution failed: {e}")
-
     def close(self) -> None:
         """Close database connection."""
         if self._connection:
             try:
-                if self._transaction_active and not getattr(
-                    self._connection, "closed", False
-                ):
-                    self._connection.rollback()
                 if not getattr(self._connection, "closed", False):
                     self._connection.close()
             except Exception:
@@ -444,331 +324,110 @@ class DatabaseConnector:
             finally:
                 self._connection = None
                 self._module = None
-                self._transaction_active = False
                 self.is_database_active = False
                 self.database_detached_at = datetime.now()
 
-
-def begin_transaction(
-    self, isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED
-) -> None:
-    """Begin a transaction with specified isolation level."""
-    if not self._connection:
-        raise ConnectionError("No database connection")
-
-    try:
-        if isolation_level != self._current_isolation:
-            self.set_isolation_level(isolation_level)
-
-        self._connection.autocommit = False
-        self._transaction_level += 1
-        self._transaction_active = True
-
-        # Create savepoint for nested transactions
-        if self._transaction_level > 1:
-            self.create_savepoint(f"SP_LEVEL_{self._transaction_level}")
-    except Exception as e:
-        raise DatabaseError(f"Failed to begin transaction: {str(e)}")
-
-
-def commit(self) -> None:
-    """Commit current transaction level."""
-    if not self._connection:
-        raise ConnectionError("No database connection")
-
-    if not self._transaction_active:
-        raise DatabaseError("No active transaction")
-
-    try:
-        if self._transaction_level > 1:
-            # Release savepoint for nested transaction
-            self.release_savepoint(self._savepoints[-1])
-        else:
-            # Commit main transaction
-            self._connection.commit()
-            self._transaction_active = False
-
-        self._transaction_level -= 1
-    except Exception as e:
-        raise DatabaseError(f"Failed to commit transaction: {str(e)}")
-
-
-def rollback(self, savepoint_name: Optional[str] = None) -> None:
-    """Rollback to savepoint or full transaction."""
-    if not self._connection:
-        raise ConnectionError("No database connection")
-
-    if savepoint_name:
-        with self._cursor() as cursor:
-            cursor.execute(f"ROLLBACK TRANSACTION {savepoint_name}")
-    else:
-        self._connection.rollback()
-        self._transaction_level = 0
-        self._savepoints.clear()
-
-    def create_savepoint(self, name: str) -> None:
-        """Create a savepoint in the current transaction."""
-        if not self._transaction_active:
-            raise DatabaseError("No active transaction")
-
-        with self._cursor() as cursor:
-            cursor.execute(f"SAVE TRANSACTION {name}")
-
-    def rollback_to_savepoint(self, name: str) -> None:
-        """Rollback to a specific savepoint."""
-        if not self._transaction_active:
-            raise DatabaseError("No active transaction")
-
-        with self._cursor() as cursor:
-            cursor.execute(f"ROLLBACK TRANSACTION {name}")
-
-    def _get_current_isolation_level(self) -> Optional[IsolationLevel]:
-        """Get current isolation level."""
-        if not self._connection:
-            return None
-
-        try:
-            engine_config = self.engine_config[self.target_database_engine_name]
-            # Get isolation level query from engine configuration
-            isolation_query = engine_config.get("TRANSACTION_MANAGEMENT", {}).get(
-                "GET_ISOLATION_LEVEL_QUERY"
-            )
-
-            if not isolation_query:
-                return self._current_isolation
-
-            with self._cursor() as cursor:
-                cursor.execute(isolation_query)
-                result = cursor.fetchone()
-                return IsolationLevel(result[0].upper()) if result else None
-
-        except Exception as e:
-            raise DatabaseError(f"Failed to get isolation level: {str(e)}")
-
     def __enter__(self):
-        """Simple context manager entry."""
+        """Context manager entry."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Simple context manager exit."""
+        """Context manager exit."""
         self.close()
 
 
-def main():
-    """mssql connection demonstration."""
+if __name__ == "__main__":
+    # Simple connection test
     try:
-        # initialize connector
-        db = databaseconnector(
-            target_database_engine=targetdatabaseengine.mssql,
-            target_database_engine_connect_option=targetdatabaseconnectionstringoption.defaultformatanddefaultuserpwd,
+        db = DatabaseConnector(
+            target_database_engine=TargetDatabaseEngine.MSSQL,
+            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
         )
 
-        # proper method chaining
         with (
             db.set_credentials_based_on_connect_option()
             .finalization_of_connection_parameters(
-                server="127.0.0.1",
-                port_number=13001,
-                database_name="adventureworks2019",
+                DRIVER="{ODBC Driver 17 for SQL Server}",
+                SERVER="127.0.0.1",
+                PORT_NUMBER=13001,
+                DATABASE_NAME="AdventureWorks2019",
             )
-            .connect_to_database() as conn
-        ):
-            print("\nstarting crud operations test:")
-
-            # create schema
-            print("\n1. creating schema:")
-            conn.execute_ddl(
-                """
-                if not exists (select * from sys.schemas where name = 'aproduction')
-                begin
-                    exec('create schema [aproduction]')
-                end
-                """
-            )
-            print("schema created successfully.")
-
-            # create table with data
-            print("\n2. creating table with data:")
-            conn.execute_ddl(
-                """
-                if exists (select * from sys.tables where name = 'productinventory' and schema_name(schema_id) = 'aproduction')
-                    drop table [aproduction].[productinventory]
-
-                select  productid,
-                        locationid,
-                        shelf,
-                        bin,
-                        quantity,
-                        rowguid,
-                        modifieddate
-                into [aproduction].[productinventory]
-                from [production].[productinventory]
-                """
-            )
-            print("table created and populated successfully.")
-
-            # verify table creation and initial data
-            print("\n3. initial quantity values:")
+            .connect_to_database()
+        ) as conn:
+            print("\nSQL Server Version:")
             conn.execute_query_to_prettytable(
-                """
-                select top 10
-                    productid,
-                    locationid,
-                    quantity
-                from [aproduction].[productinventory]
-                order by productid
-                """,
-                print_result=true,
+                "SELECT @@VERSION as Version", print_result=True
             )
 
-            # update data
-            print("\n4. updating quantities:")
-            conn.execute_ddl(
-                """
-                update [aproduction].[productinventory]
-                set quantity = quantity + 30
-                where (productid % 2 = 1);
-                """
-            )
-            print("update completed successfully.")
-
-            # verify the update
-            print("\n5. updated quantity values:")
-            conn.execute_query_to_prettytable(
-                """
-                select top 10
-                    productid,
-                    locationid,
-                    quantity,
-                    case
-                        when productid % 2 = 1 then 'updated (+30)'
-                        else 'not updated'
-                    end as status
-                from [aproduction].[productinventory]
-                order by productid
-                """,
-                print_result=true,
-            )
-
-    except connectionerror as e:
-        print(f"connection error: {e}")
-    except databaseerror as e:
-        print(f"database error: {e}")
-    except exception as e:
-        print(f"unexpected error: {e}")
+    except ConnectionError as e:
+        print(f"Connection error: {e}")
+    except DatabaseError as e:
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
     finally:
-        if "db" in locals():
-            db.close()
-        print("\ntest completed and connection closed.")
+        print("\nTest completed.")
 
 
-if __name__ == "__main__":
-    main()
-# def main():
-#     """MSSQL connection demonstration."""
-#     try:
-#         # Initialize connector
-#         db = DatabaseConnector(
-#             target_database_engine=TargetDatabaseEngine.MSSQL,
-#             target_database_engine_connect_option=TargetDatabaseConnectionStringOption.CustomizeFormatAndDefaultUserPwd,
-#         )
-
-#         # Original method chaining with context manager
-#         with (
-#         ):
-
-#             # test 1: check sql server version and CurrentDatabase
-#             print("\n1. sql server version:")
-#             version_result = conn.execute_query_to_prettytable(
-#                 "select @@version as version,db_name() as CurrentDatabase",
-#                 print_result=True,
-#             )
-
-#             print("\nStarting AdventoSQL Day 5:")
-
-#             # verify table creation and initial data
-#             print("\n2. AdventOfSQL Day 5:")
-#             conn.execute_query_to_prettytable(
-#                 """
-#                     SELECT tp.production_date as ProductionDate,
-#                         lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
-#                         tp.toys_produced as ToysProduced,
-#                         lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
-#                         tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
-#                         format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
-#                         tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
-#                         format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
-#                         row_number() over(order by tp.production_date desc) as row_number
-#                         from  Day5.toy_production as tp
-#                     order by tp.production_date desc,PreviousToysProduced
-#         """,
-#                 print_result=True,
-#             )
-
-#             # # # verify table creation and initial data
-#             # # print("\n2. AdventOfSQL Day 5:")
-#             # # conn.execute_query_to_dataframe(
-#             # #     """
-
-#             # #         SELECT tp.production_date as ProductionDate,
-#             # #             lag(tp.toys_produced) over (order by tp.production_date) as PreviousToysProduced,
-#             # #             tp.toys_produced as ToysProduced,
-#             # #             lead(tp.toys_produced) over (order by tp.production_date) as NextToysProduced,
-#             # #             tp.toys_produced - lag(tp.toys_produced) over (order by tp.production_date) as PreviousProductionChange,
-#             # #             format(1.-(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date desc)),'P') as PreviousProductionChangePCT,
-#             # #             tp.toys_produced - lead(tp.toys_produced) over (order by tp.production_date )  as NextProductionChange,
-#             # #             format(1. -(tp.toys_produced*1.0 /lead(tp.toys_produced) over (order by tp.production_date )),'P') as NextProductionChangePCT,
-#             # #             row_number() over(order by tp.production_date desc) as df_index
-#             # #             from  Day5.toy_production as tp
-#             # #         order by tp.production_date desc,PreviousToysProduced
-#             # #     """,
-#             # #     index_col="df_index",
-#             # # )
-
-#     except ConnectionError as e:
-#         print(f"Connection error: {e}")
-#     except DatabaseError as e:
-#         print(f"Database error: {e}")
-#     except Exception as e:
-#         print(f"Unexpected error: {e}")
-#     finally:
-#         if "db" in locals():
-#             db.close()
-#         print("\nTest completed and connection closed.")
-
-
-# if __name__ == "__main__":
-#     main()
 def main():
     """MSSQL connection demonstration."""
     try:
         # Initialize connector
         db = DatabaseConnector(
             target_database_engine=TargetDatabaseEngine.MSSQL,
-            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.Default_DSN_AndChangeUserPwd,
+            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
         )
 
-        # Set up connection using template parameters
-        db.set_credentials_based_on_connect_option().finalization_of_connection_parameters(
-            DRIVER="{ODBC Driver 17 for SQL Server}",
-            SERVER="127.0.0.1",
-            PORT_NUMBER=13001,
-            DATABASE_NAME="AdventureWorks2019",
-        ).connect_to_database()
+        # Demonstrate fluent pattern with context manager
+        with (
+            db.set_credentials_based_on_connect_option()
+            .finalization_of_connection_parameters(
+                DRIVER="{ODBC Driver 17 for SQL Server}",
+                SERVER="127.0.0.1",
+                PORT_NUMBER=13001,
+                DATABASE_NAME="AdventureWorks2019",
+            )
+            .connect_to_database()
+        ) as conn:
+            print("\nDemonstrating core functionality:")
 
-        print("\nSQL Server Version:")
-        db.execute_query_to_prettytable(
-            "SELECT @@VERSION as Version", print_result=True
-        )
+            print("\n1. Version and Database Check:")
+            conn.execute_query_to_prettytable(
+                """
+                SELECT @@VERSION as Version,
+                       DB_NAME() as CurrentDatabase
+                """,
+                print_result=True,
+            )
 
-        print("\nQuerying Product Inventory:")
-        db.execute_query_to_prettytable(
-            """
-            SELECT *
-            FROM [AdventureWorks2019].[Production].[ProductInventory]
-            """,
-            print_result=True,
-        )
+            print("\n2. Sample Product Query:")
+            conn.execute_query_to_prettytable(
+                """
+                SELECT TOP 5
+                    ProductID,
+                    Name,
+                    ProductNumber,
+                    ListPrice
+                FROM Production.Product
+                ORDER BY ProductID
+                """,
+                print_result=True,
+            )
+
+            print("\n3. Sample Inventory Query:")
+            conn.execute_query_to_prettytable(
+                """
+                SELECT TOP 5
+                    ProductID,
+                    LocationID,
+                    Shelf,
+                    Bin,
+                    Quantity
+                FROM Production.ProductInventory
+                ORDER BY ProductID, LocationID
+                """,
+                print_result=True,
+            )
 
     except ConnectionError as e:
         print(f"Connection error: {e}")
@@ -779,7 +438,7 @@ def main():
     finally:
         if "db" in locals():
             db.close()
-        print("\nTest completed and connection closed.")
+        print("\nDemo completed and connection closed.")
 
 
 if __name__ == "__main__":
