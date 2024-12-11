@@ -8,42 +8,26 @@ Our mission is to deliver a streamlined, maintainable solution adhering to the p
 
 ## 📚 Table of Contents
 
-### 1. [README.md](README.md)
+### 1. [Core Documentation](#core-docs)
 
-- Core project overview and essential setup [↩️](#)
+#### [DatabaseConnector Implementation](DatabaseConnector%20Documentation.md#-databaseconnector-implementation-guide)
 
-### 2. [DatabaseConnector Documentation](DatabaseConnector%20Documentation.md)
+- [Core Setup](DatabaseConnector%20Documentation.md#-core-setup)
+- [Class Initialization](DatabaseConnector%20Documentation.md#️-class-initialization)
+- [Working Examples](DatabaseConnector%20Documentation.md#-working-examples)
+- [Design Patterns](DatabaseConnector%20Documentation.md#-design-patterns-used)
+- [Usage Guidelines](DatabaseConnector%20Documentation.md#-usage-guidelines)
 
-- Core implementation details
-- Essential classes and methods
-- Exception handling [↩️](#)
+### 2. [Implementation Documentation](#impl-docs)
 
-### 3. [Query Execution Patterns](Query%20Execution%20Patterns%20Documentation.md)
+- [Query Execution Patterns](Query%20Execution%20Patterns%20Documentation.md)
+- [Project Configuration](Complete%20Project%20Configuration%20Documentation.md)
 
-- Basic and complex queries
-- Data retrieval patterns
-- Result formatting [↩️](#)
+### 3. [Future Phase Documentation](#future-docs)
 
-### 4. [Project Configuration](Complete%20Project%20Configuration%20Documentation.md)
-
-- Project structure
-- Environment setup
-- Launch configuration [↩️](#)
-
-### 5. [Connection Pooling](Connection%20Pooling%20Documentation.md)
-
-- Future phase placeholder
-- Connection management strategies [↩️](#)
-
-### 6. [Transaction Management](Transaction%20Management%20Documentation.md)
-
-- Future phase placeholder
-- Transaction handling patterns [↩️](#)
-
-### 7. [Advanced Configuration](Advanced%20Configuration%20Documentation.md)
-
-- Extended configuration options
-- Custom implementations [↩️](#)
+- [Connection Pooling](Connection%20Pooling%20Documentation.md)
+- [Transaction Management](Transaction%20Management%20Documentation.md)
+- [Advanced Configuration](Advanced%20Configuration%20Documentation.md)
 
 ## 🎯 Core Objectives
 
@@ -74,6 +58,6 @@ pydbconnect/
 4. Future phase preparation
 
 [⬆️ Back to Top](#)
----
 
+---
 © 2024 PyDBConnect
