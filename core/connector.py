@@ -11,8 +11,14 @@ from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
 
+# Exception definitions must come first
+#
+# The fundamental approach of having exceptions defined before imports
+# remains the same in both versions. Therefore, we should keep
+# the original format as it's working and
+# maintains your established code style.
 
-# Exception definitions
+
 class DatabaseError(Exception):
     """Base exception for database operations."""
 
@@ -31,7 +37,6 @@ class CredentialsError(DatabaseError):
     pass
 
 
-# Import after exceptions to prevent circular imports
 from utils.decorators import preload_parameters, ensure_connected
 from templates.constraints import (
     ChangeDefaultUsernameAndPassword,

@@ -7,7 +7,7 @@
 - [Pool Management](#management)
 - [Usage Patterns](#usage)
 
-<a name="pool-arch"></a>
+<span id="pool-arch"></span>
 
 ## 🏗️ Pool Architecture [↑](#table-of-contents)
 
@@ -45,7 +45,7 @@ def _create_connection(self) -> DatabaseConnector:
      ).connect_to_database()
 ```
 
-<a name="implementation"></a>
+<span id="implementation"></span>
 
 ## 🔧 Implementation Strategy [↑](#table-of-contents)
 
@@ -86,7 +86,7 @@ def release_connection(self, connection: DatabaseConnector) -> None:
                 connection.close()
 ```
 
-<a name="management"></a>
+<span id="management"></span>
 
 ## 📊 Pool Management [↑](#table-of-contents)
 
@@ -125,7 +125,7 @@ def _validate_connection(self, connection: DatabaseConnector) -> bool:
         return False
 ```
 
-<a name="usage"></a>
+<span id="usage"></span>
 
 ## 🎯 Usage Patterns [↑](#table-of-contents)
 
