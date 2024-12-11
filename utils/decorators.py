@@ -6,7 +6,7 @@ from inspect import signature
 
 # Import needed custom types
 from templates.constraints import IsolationLevel
-from templates.exceptions import DatabaseError, ConnectionError
+from core.connector import DatabaseError, ConnectionError
 
 
 def preload_parameters(preload_method: Callable) -> Callable:

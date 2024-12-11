@@ -12,13 +12,6 @@ from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
 from templates.constraints import IsolationLevel
-
-from core.exceptions import DatabaseError, ConnectionError
-
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent))
 from utils.decorators import preload_parameters, ensure_connected
 
 import templates.engines as templates
@@ -561,114 +554,116 @@ def rollback(self, savepoint_name: Optional[str] = None) -> None:
         self.close()
 
 
-# # def main():
-# #     """mssql connection demonstration."""
-# #     try:
-# #         # initialize connector
-# #         db = databaseconnector(
-# #             target_database_engine=targetdatabaseengine.mssql,
-# #             target_database_engine_connect_option=targetdatabaseconnectionstringoption.defaultformatanddefaultuserpwd,
-# #         )
+def main():
+    """mssql connection demonstration."""
+    try:
+        # initialize connector
+        db = databaseconnector(
+            target_database_engine=targetdatabaseengine.mssql,
+            target_database_engine_connect_option=targetdatabaseconnectionstringoption.defaultformatanddefaultuserpwd,
+        )
 
-# #         # proper method chaining
-# #         with (
-# #             db.set_credentials_based_on_connect_option()
-# #             .finalization_of_connection_parameters(
-# #                 server="127.0.0.1", port_number=13001, database_name="adventureworks2019"
-# #             )
-# #             .connect_to_database() as conn
-# #         ):
-# #             print("\nstarting crud operations test:")
+        # proper method chaining
+        with (
+            db.set_credentials_based_on_connect_option()
+            .finalization_of_connection_parameters(
+                server="127.0.0.1",
+                port_number=13001,
+                database_name="adventureworks2019",
+            )
+            .connect_to_database() as conn
+        ):
+            print("\nstarting crud operations test:")
 
-# #             # create schema
-# #             print("\n1. creating schema:")
-# #             conn.execute_ddl(
-# #                 """
-# #                 if not exists (select * from sys.schemas where name = 'aproduction')
-# #                 begin
-# #                     exec('create schema [aproduction]')
-# #                 end
-# #                 """
-# #             )
-# #             print("schema created successfully.")
+            # create schema
+            print("\n1. creating schema:")
+            conn.execute_ddl(
+                """
+                if not exists (select * from sys.schemas where name = 'aproduction')
+                begin
+                    exec('create schema [aproduction]')
+                end
+                """
+            )
+            print("schema created successfully.")
 
-# #             # create table with data
-# #             print("\n2. creating table with data:")
-# #             conn.execute_ddl(
-# #                 """
-# #                 if exists (select * from sys.tables where name = 'productinventory' and schema_name(schema_id) = 'aproduction')
-# #                     drop table [aproduction].[productinventory]
+            # create table with data
+            print("\n2. creating table with data:")
+            conn.execute_ddl(
+                """
+                if exists (select * from sys.tables where name = 'productinventory' and schema_name(schema_id) = 'aproduction')
+                    drop table [aproduction].[productinventory]
 
-# #                 select  productid,
-# #                         locationid,
-# #                         shelf,
-# #                         bin,
-# #                         quantity,
-# #                         rowguid,
-# #                         modifieddate
-# #                 into [aproduction].[productinventory]
-# #                 from [production].[productinventory]
-# #                 """
-# #             )
-# #             print("table created and populated successfully.")
+                select  productid,
+                        locationid,
+                        shelf,
+                        bin,
+                        quantity,
+                        rowguid,
+                        modifieddate
+                into [aproduction].[productinventory]
+                from [production].[productinventory]
+                """
+            )
+            print("table created and populated successfully.")
 
-# #             # verify table creation and initial data
-# #             print("\n3. initial quantity values:")
-# #             conn.execute_query_to_prettytable(
-# #                 """
-# #                 select top 10
-# #                     productid,
-# #                     locationid,
-# #                     quantity
-# #                 from [aproduction].[productinventory]
-# #                 order by productid
-# #                 """,
-# #                 print_result=true,
-# #             )
+            # verify table creation and initial data
+            print("\n3. initial quantity values:")
+            conn.execute_query_to_prettytable(
+                """
+                select top 10
+                    productid,
+                    locationid,
+                    quantity
+                from [aproduction].[productinventory]
+                order by productid
+                """,
+                print_result=true,
+            )
 
-# #             # update data
-# #             print("\n4. updating quantities:")
-# #             conn.execute_ddl(
-# #                 """
-# #                 update [aproduction].[productinventory]
-# #                 set quantity = quantity + 30
-# #                 where (productid % 2 = 1);
-# #                 """
-# #             )
-# #             print("update completed successfully.")
+            # update data
+            print("\n4. updating quantities:")
+            conn.execute_ddl(
+                """
+                update [aproduction].[productinventory]
+                set quantity = quantity + 30
+                where (productid % 2 = 1);
+                """
+            )
+            print("update completed successfully.")
 
-# #             # verify the update
-# #             print("\n5. updated quantity values:")
-# #             conn.execute_query_to_prettytable(
-# #                 """
-# #                 select top 10
-# #                     productid,
-# #                     locationid,
-# #                     quantity,
-# #                     case
-# #                         when productid % 2 = 1 then 'updated (+30)'
-# #                         else 'not updated'
-# #                     end as status
-# #                 from [aproduction].[productinventory]
-# #                 order by productid
-# #                 """,
-# #                 print_result=true,
-# #             )
+            # verify the update
+            print("\n5. updated quantity values:")
+            conn.execute_query_to_prettytable(
+                """
+                select top 10
+                    productid,
+                    locationid,
+                    quantity,
+                    case
+                        when productid % 2 = 1 then 'updated (+30)'
+                        else 'not updated'
+                    end as status
+                from [aproduction].[productinventory]
+                order by productid
+                """,
+                print_result=true,
+            )
 
-# #     except connectionerror as e:
-# #         print(f"connection error: {e}")
-# #     except databaseerror as e:
-# #         print(f"database error: {e}")
-# #     except exception as e:
-# #         print(f"unexpected error: {e}")
-# #     finally:
-# #         if "db" in locals():
-# #             db.close()
-# #         print("\ntest completed and connection closed.")
+    except connectionerror as e:
+        print(f"connection error: {e}")
+    except databaseerror as e:
+        print(f"database error: {e}")
+    except exception as e:
+        print(f"unexpected error: {e}")
+    finally:
+        if "db" in locals():
+            db.close()
+        print("\ntest completed and connection closed.")
 
 
-# # if __name__ == "__main__":
-# #     main()
+if __name__ == "__main__":
+    main()
 # def main():
 #     """MSSQL connection demonstration."""
 #     try:
@@ -741,5 +736,51 @@ def rollback(self, savepoint_name: Optional[str] = None) -> None:
 #             db.close()
 #         print("\nTest completed and connection closed.")
 
+
 # if __name__ == "__main__":
 #     main()
+def main():
+    """MSSQL connection demonstration."""
+    try:
+        # Initialize connector
+        db = DatabaseConnector(
+            target_database_engine=TargetDatabaseEngine.MSSQL,
+            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.Default_DSN_AndChangeUserPwd,
+        )
+
+        # Set up connection using template parameters
+        db.set_credentials_based_on_connect_option().finalization_of_connection_parameters(
+            DRIVER="{ODBC Driver 17 for SQL Server}",
+            SERVER="127.0.0.1",
+            PORT_NUMBER=13001,
+            DATABASE_NAME="AdventureWorks2019",
+        ).connect_to_database()
+
+        print("\nSQL Server Version:")
+        db.execute_query_to_prettytable(
+            "SELECT @@VERSION as Version", print_result=True
+        )
+
+        print("\nQuerying Product Inventory:")
+        db.execute_query_to_prettytable(
+            """
+            SELECT *
+            FROM [AdventureWorks2019].[Production].[ProductInventory]
+            """,
+            print_result=True,
+        )
+
+    except ConnectionError as e:
+        print(f"Connection error: {e}")
+    except DatabaseError as e:
+        print(f"Database error: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        if "db" in locals():
+            db.close()
+        print("\nTest completed and connection closed.")
+
+
+if __name__ == "__main__":
+    main()

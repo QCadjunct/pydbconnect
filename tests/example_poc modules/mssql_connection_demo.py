@@ -1,9 +1,8 @@
-from core.connector import DatabaseConnector
+from core.connector import DatabaseConnector, DatabaseError, ConnectionError
 from templates.constraints import (
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
 )
-from core.exceptions import ConnectionError, DatabaseError
 
 
 def main():
@@ -12,7 +11,7 @@ def main():
         # Initialize connector
         db = DatabaseConnector(
             target_database_engine=TargetDatabaseEngine.MSSQL,
-            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
+            target_database_engine_connect_option=TargetDatabaseConnectionStringOption.Default_DSN_AndChangeUserPwd,
         )
 
         # Set up connection using template parameters
