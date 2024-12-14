@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import Dict, Any, Type
+from typing import Dict, Any, Type, Callable, Optional
+import pandas as pd
+
 from abc import ABC, abstractmethod
 import importlib
 
@@ -281,6 +283,106 @@ class IsolationLevel(Enum):
     def get_sql_statement(self) -> str:
         """Get SQL to set this isolation level."""
         return f"SET TRANSACTION ISOLATION LEVEL {self.value}"
+
+
+class FileExtension(Enum):
+    """Supported file extensions."""
+
+    CSV = "csv"
+    JSON = "json"
+    HTML = "html"
+    XML = "xml"
+    XLS = "xls"
+    XLSX = "xlsx"
+    PARQUET = "parquet"
+    FEATHER = "feather"
+    HDF = "h5"
+    ORC = "orc"
+    PICKLE = "pkl"
+    SQL = "sql"
+    STATA = "stata"
+
+
+class WriterMethod(Enum):
+    """Pandas DataFrame writer methods."""
+
+    CSV = "to_csv"
+    JSON = "to_json"
+    HTML = "to_html"
+    XML = "to_xml"
+    EXCEL = "to_excel"
+    PARQUET = "to_parquet"
+    FEATHER = "to_feather"
+    HDF = "to_hdf"
+    ORC = "to_orc"
+    PICKLE = "to_pickle"
+    SQL = "to_sql"
+    STATA = "to_stata"
+
+
+class FileFormat(Enum):
+    """Pandas I/O formats with read/write capabilities."""
+
+    # Text formats
+    CSV = (FileExtension.CSV, pd.read_csv, WriterMethod.CSV)
+    JSON = (FileExtension.JSON, pd.read_json, WriterMethod.JSON)
+    HTML = (FileExtension.HTML, pd.read_html, WriterMethod.HTML)
+    XML = (FileExtension.XML, pd.read_xml, WriterMethod.XML)
+
+    # Excel formats
+    XLS = (FileExtension.XLS, pd.read_excel, WriterMethod.EXCEL)
+    XLSX = (FileExtension.XLSX, pd.read_excel, WriterMethod.EXCEL)
+
+    # Binary formats
+    PARQUET = (FileExtension.PARQUET, pd.read_parquet, WriterMethod.PARQUET)
+    FEATHER = (FileExtension.FEATHER, pd.read_feather, WriterMethod.FEATHER)
+    HDF = (FileExtension.HDF, pd.read_hdf, WriterMethod.HDF)
+    ORC = (FileExtension.ORC, pd.read_orc, WriterMethod.ORC)
+    PICKLE = (FileExtension.PICKLE, pd.read_pickle, WriterMethod.PICKLE)
+
+    # SQL and specialized formats
+    SQL = (FileExtension.SQL, pd.read_sql, WriterMethod.SQL)
+    STATA = (FileExtension.STATA, pd.read_stata, WriterMethod.STATA)
+
+    def __init__(
+        self, extension: FileExtension, reader: Callable, writer_method: WriterMethod
+    ):
+        self._extension = extension
+        self._reader = reader
+        self._writer_method = writer_method
+
+    @property
+    def extension(self) -> str:
+        """Get file extension."""
+        return self._extension.value
+
+    @property
+    def value(self) -> str:
+        """Get file extension (compatibility with base Enum)."""
+        return self._extension.value
+
+    def write_dataframe(self, df: pd.DataFrame, path: str, **kwargs: Any) -> None:
+        """Write DataFrame using format-specific writer."""
+        writer = getattr(df, self._writer_method.value)
+        writer(path, **kwargs)
+
+    def read_file(self, path: str, **kwargs: Any) -> pd.DataFrame:
+        """Read file using format-specific reader."""
+        return self._reader(path, **kwargs)
+
+    @classmethod
+    def get_excel_formats(cls) -> list["FileFormat"]:
+        """Get all Excel format types."""
+        return [cls.XLS, cls.XLSX]
+
+    @classmethod
+    def from_extension(cls, extension: str) -> Optional["FileFormat"]:
+        """Get format enum from file extension."""
+        try:
+            ext = FileExtension(extension.lstrip("."))
+            return next(fmt for fmt in cls if fmt._extension == ext)
+        except ValueError:
+            return None
 
 
 def test_enums():

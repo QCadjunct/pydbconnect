@@ -143,6 +143,32 @@ MSSQL: Dict[str, Dict[str, Any]] = {
                 WHERE session_id = @@SPID
             """,
         },
+        "METADATA_QUERIES": {
+            "GET_TABLE_METADATA": """
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY t.TABLE_NAME) as panda_index_column,
+                    c.COLUMN_NAME as table_name_key,
+                    t.TABLE_NAME,
+                    t.TABLE_TYPE,
+                    c.DATA_TYPE,
+                    c.ORDINAL_POSITION,
+                    tc.CONSTRAINT_NAME,
+                    tc.CONSTRAINT_TYPE
+                FROM INFORMATION_SCHEMA.TABLES as t
+                    INNER JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS as tc
+                        ON tc.TABLE_NAME = t.TABLE_NAME
+                    INNER JOIN INFORMATION_SCHEMA.COLUMNS as c
+                        ON c.TABLE_NAME = t.TABLE_NAME
+                WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
+                    AND t.TABLE_NAME NOT IN ({excluded_tables})
+                    AND c.ORDINAL_POSITION = 1
+            """,
+            "DEFAULT_EXCLUDED_TABLES": [
+                "sysdiagrams",
+                "DatabaseLog",
+                "AdventureWorksDWBuildVersion",
+            ],
+        },
     }
 }
 

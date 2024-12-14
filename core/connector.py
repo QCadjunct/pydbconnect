@@ -318,6 +318,26 @@ class DatabaseConnector:
             except Exception as e:
                 raise DatabaseError(f"Query execution failed: {e}")
 
+    @ensure_connected
+    def execute_statement(self, sql: str) -> None:
+        """Execute a general SQL statement (DML or DDL).
+
+        Args:
+            sql: SQL statement to execute
+        """
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
+        try:
+            with self._cursor() as cursor:
+                cursor.execute(sql)
+                if not getattr(self._connection, "closed", False):
+                    self._connection.commit()
+        except Exception as e:
+            if not getattr(self._connection, "closed", False):
+                self._connection.rollback()
+            raise DatabaseError(f"Statement execution failed: {e}")
+
     def close(self) -> None:
         """Close database connection."""
         if self._connection:
