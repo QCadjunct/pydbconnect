@@ -4,12 +4,10 @@
 
 - [Transaction Basics](#trans-basics)
 - [Isolation Levels](#isolation)
-- [Transaction Patterns](#patterns)
+- [Transaction Patterns](#transaction-patterns-)
 - [Error Handling](#error-handling)
 
-<a name="trans-basics"></a>
-
-## 🔄 Transaction Basics [↑](#table-of-contents)
+## 🔄 Transaction Basics [↑](#table-of-contents) {#trans-basics}
 
 ### Basic Transaction Structure
 
@@ -61,9 +59,7 @@ def transfer_inventory(product_from: int, product_to: int, quantity: int):
         raise
 ```
 
-<a name="isolation"></a>
-
-## 🔒 Isolation Levels [↑](#table-of-contents)
+## 🔒 Isolation Levels [↑](#table-of-contents) {#isolation}
 
 ### Isolation Level Implementation
 
@@ -99,7 +95,7 @@ db.begin_transaction(IsolationLevel.SERIALIZABLE)
 db.begin_transaction(IsolationLevel.READ_UNCOMMITTED)
 ```
 
-<a name="patterns"></a>
+## Transaction Patterns [↑](#table-of-contents)
 
 ## 📋 Transaction Patterns [↑](#table-of-contents)
 
@@ -151,9 +147,7 @@ def critical_operation(self, data):
     pass
 ```
 
-<a name="error-handling"></a>
-
-## ⚠️ Error Handling [↑](#table-of-contents)
+## ⚠️ Error Handling [↑](#table-of-contents) {#error-handling}
 
 ### Transaction Error Management
 

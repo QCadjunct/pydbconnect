@@ -1,5 +1,7 @@
 from enum import Enum
-from typing import Dict, Any, Type, Callable, Optional
+from typing import Dict, Any, Type, Callable, Optional, List
+from dataclasses import dataclass
+from datetime import datetime
 import pandas as pd
 
 from abc import ABC, abstractmethod
@@ -408,6 +410,32 @@ def test_enums():
     print("\nTesting DSN option:")
     print(f"Uses DSN: {dsn_option.uses_dsn}")
     print(f"Changes credentials: {dsn_option.changes_credentials}")
+
+
+@dataclass
+class TransferMetrics:
+    """ETL transfer metrics."""
+
+    table_name: str
+    start_time: datetime
+    end_time: datetime
+    row_count: int
+    duration_seconds: float
+    source_columns: int
+    target_columns: int
+    source_data_types: List[str]
+    target_data_types: List[str]
+
+    def __str__(self) -> str:
+        """Format metrics for display."""
+        return (
+            f"Table: {self.table_name}\n"
+            f"  Rows: {self.row_count:,}\n"
+            f"  Duration: {self.duration_seconds:.2f}s\n"
+            f"  Columns: {self.source_columns} -> {self.target_columns}\n"
+            f"  Start: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"  End: {self.end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
 
 
 if __name__ == "__main__":

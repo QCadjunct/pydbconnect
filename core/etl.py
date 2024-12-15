@@ -49,33 +49,34 @@ class DatabaseETL:
 
         return query.format(excluded_tables=excluded_list)
 
+    def _transfer_table_duckdb(
+        self, table_name: str, key_column: str
+    ) -> Tuple[bool, int]:
+        """Transfer single table with cleanup for DuckDB target."""
+        temp_file = self.temp_path / f"{table_name}.{self.file_format.extension}"
 
-def _transfer_table(self, table_name: str, key_column: str) -> Tuple[bool, int]:
-    """Transfer single table with cleanup."""
-    temp_file = self.temp_path / f"{table_name}.{self.file_format.extension}"
+        try:
+            # Extract data
+            df = self.source_db.execute_query_to_dataframe(
+                f"SELECT * FROM {table_name} ORDER BY {key_column}"
+            )
 
-    try:
-        # Extract data
-        df = self.source_db.execute_query_to_dataframe(
-            f"SELECT * FROM {table_name} ORDER BY {key_column}"
-        )
+            # Save using format-specific writer
+            self.file_format.write_dataframe(df, str(temp_file))
 
-        # Save using format-specific writer
-        self.file_format.write_dataframe(df, str(temp_file))
+            # Create target table
+            self.target_db.execute_statement(
+                f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'"
+            )
 
-        # Create target table
-        self.target_db.execute_statement(
-            f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'"
-        )
+            return True, df.shape[0]
 
-        return True, df.shape[0]
-
-    except Exception as e:
-        print(f"Transfer failed for {table_name}: {e}")
-        return False, 0
-    finally:
-        if temp_file.exists():
-            temp_file.unlink()
+        except Exception as e:
+            print(f"Transfer failed for {table_name}: {e}")
+            return False, 0
+        finally:
+            if temp_file.exists():
+                temp_file.unlink()
 
     def _transfer_table(self, table_name: str, key_column: str) -> Tuple[bool, int]:
         """Transfer single table with cleanup."""
@@ -93,7 +94,7 @@ def _transfer_table(self, table_name: str, key_column: str) -> Tuple[bool, int]:
             elif self.file_format == FileFormat.JSON:
                 df.to_json(str(temp_file))
 
-            self.target_db.execute_query(
+            self.target_db.execute_statement(
                 f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'"
             )
 
