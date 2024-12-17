@@ -27,17 +27,6 @@ def main():
             )
             .connect_to_database()
         ) as conn:
-            print("\nDemonstrating core functionality:")
-
-            print("\n1. Version and Database Check:")
-            conn.execute_query_to_prettytable(
-                """
-                SELECT @@VERSION as Version,
-                       DB_NAME() as CurrentDatabase
-                """,
-                print_result=True,
-            )
-
             print("\n2. Sample Product Query:")
             conn.execute_query_to_prettytable(
                 """

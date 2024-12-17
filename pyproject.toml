@@ -34,4 +34,5 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["core", "optional", "templates", "utils"]
+packages = ["core", "templates", "utils"]
+package-dir = {""="."}

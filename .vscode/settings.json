@@ -6,7 +6,8 @@
         "${workspaceFolder}/core",
         "${workspaceFolder}/optional",
         "${workspaceFolder}/templates",
-        "${workspaceFolder}/utils"
+        "${workspaceFolder}/utils",
+        "${workspaceFolder}/tests/example_poc modules"
     ],
     "python.envFile": "${workspaceFolder}/.env",
     // Code analysis and formatting
@@ -20,31 +21,10 @@
     "python.testing.unittestEnabled": false,
     "python.testing.nosetestsEnabled": false,
     "python.testing.pytestArgs": [
-        "tests" // Ensure this directory exists if you have tests
+        "tests"
     ],
     // Terminal environment settings
     "terminal.integrated.env.windows": {
         "PYTHONPATH": "${workspaceFolder}"
     }
 }
-//  The  python.defaultInterpreterPath  setting specifies the path to the Python interpreter that you want to use for your project. This path is relative to the workspace folder. 
-//  The  python.analysis.extraPaths  setting specifies additional paths that the Python language server should use to resolve imports. This setting is useful if you have custom modules or packages that are not in the root of your workspace. 
-//  The  python.envFile  setting specifies the path to a file that contains environment variables that you want to use when running your Python code. This setting is useful if you have sensitive information that you don't want to hardcode in your code. 
-//  The  python.analysis.typeCheckingMode  setting specifies the level of type checking that you want the Python language server to perform. The possible values are "off", "basic", and "strict". 
-//  The  python.formatting.provider  setting specifies the code formatter that you want to use for your Python code. The possible values are "autopep8", "black", and "yapf". 
-//  The  editor.formatOnSave  setting specifies whether the code formatter should run automatically when you save a file. 
-//  The  python.linting.enabled  setting specifies whether linting should be enabled for your Python code. 
-//  The  python.linting.pylintEnabled  setting specifies whether the Pylint linter should be enabled for your Python code. 
-//  The  python.testing.pytestEnabled  setting specifies whether the Pytest testing framework should be enabled for your Python code. 
-//  The  python.testing.unittestEnabled  setting specifies whether the unittest testing framework should be enabled for your Python code. 
-//  The  python.testing.nosetestsEnabled  setting specifies whether the Nose testing framework should be enabled for your Python code. 
-//  The  python.testing.pytestArgs  setting specifies the arguments that should be passed to the Pytest testing framework when running tests. 
-//  The  terminal.integrated.env.windows  setting specifies environment variables that should be set in the integrated terminal when running Python code. 
-//  Conclusion 
-//  In this article, we have discussed how to set up a Python development environment in Visual Studio Code. We have covered the following topics: 
-//  Installing Visual Studio Code 
-//  Installing the Python extension for Visual Studio Code 
-//  Creating a virtual environment 
-//  Configuring Visual Studio Code settings 
-//  By following these steps, you can set up a Python development environment in Visual Studio Code that is tailored to your specific needs. 
-//  This will help you write, test, and debug Python code more efficiently and effectively.

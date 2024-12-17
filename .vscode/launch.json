@@ -9,7 +9,21 @@
             "console": "integratedTerminal",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
-            }
+            },
+            "justMyCode": false
+        },
+        {
+            "name": "Debug Core Example",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "core.examples.${fileBasenameNoExtension}",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "Debug complex_multi_db_transfer.py",
@@ -17,7 +31,12 @@
             "request": "launch",
             "module": "core.examples.complex_multi_db_transfer",
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "Debug simple_multi_db_sync.py",
@@ -25,15 +44,12 @@
             "request": "launch",
             "module": "core.examples.simple_multi_db_sync",
             "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
-        },
-        {
-            "name": "Debug Simple example using two DatabaseConnector instances.py",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "core.examples.Simple_example_using_two_DatabaseConnector_instances",
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env"
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}"
         },
         {
             "name": "Debug connector.py",
@@ -43,9 +59,22 @@
             "console": "integratedTerminal",
             "envFile": "${workspaceFolder}/.env",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/.."
+                "PYTHONPATH": "${workspaceFolder}"
             },
-            "justMyCode": true,
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug Test Example",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "tests.example_poc modules.${fileBasenameNoExtension}",
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "justMyCode": false,
             "cwd": "${workspaceFolder}"
         }
     ]

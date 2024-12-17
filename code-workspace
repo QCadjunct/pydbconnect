@@ -1,0 +1,34 @@
+{
+    "folders": [
+        {
+            "path": ".",
+            "name": "PyDBConnect"
+        }
+    ],
+    "settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv-db_connect/Scripts/python.exe",
+        "terminal.integrated.cwd": "${workspaceFolder}",
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/*.pyc": true
+        }
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Debug connector.py",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "${workspaceFolder}/core/connector.py",
+                "console": "integratedTerminal",
+                "envFile": "${workspaceFolder}/.env",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}"
+                },
+                "justMyCode": false,
+                "cwd": "${workspaceFolder}"
+            }
+        ]
+    }
+}
