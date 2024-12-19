@@ -512,7 +512,7 @@ TIMEZONE=America/New_York
                 script_path.write_text(content)
                 logging.info(f"Created script template: {script_name}")
 
-[Continued in next part due to length...]
+
 ```
 
 # Build System Scripts (continued)
@@ -758,7 +758,7 @@ class DockerBuilder:
             logging.error(f"Error building Docker image: {e}")
             return False
 
-[Continued in next part due to length...]
+
 ```
 
 # Build Script Methods (continued)
@@ -1019,7 +1019,7 @@ param(
 $ErrorActionPreference = "Stop"
 $LogFile = "C:\logs\backup.log"
 
-[Continued in next part due to length...]
+
 ```
 
 # PowerShell Management Scripts (continued)
@@ -1783,8 +1783,6 @@ def main():
 if __name__ == '__main__':
     main()
 ```
-
-[Continued in next part with more security configurations and troubleshooting...# Network Security & Monitoring Configuration
 
 ## 1. Network Security Setup
 
