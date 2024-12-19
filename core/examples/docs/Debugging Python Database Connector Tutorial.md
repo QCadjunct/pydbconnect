@@ -18,7 +18,7 @@ This tutorial explains how to properly run and debug the MSSQL demo using VS Cod
 
 ## 📁 Project Structure {#structure}
 
-```
+```plaintext
 pydbconnect/
 ├── core/
 │   ├── __init__.py
@@ -31,7 +31,7 @@ pydbconnect/
 │   ├── launch.json
 │   └── settings.json
 └── pyproject.toml
-```
+```plaintext
 
 [↑ Back to TOC](#-table-of-contents)
 
@@ -51,9 +51,9 @@ pydbconnect/
    ```bash
    cd Z:\VSCODE Projects\PythonProjects\pydbconnect\pydbconnect
    .venv-db_connect\Scripts\activate
-   ```
+   ```plaintext
 
-2. **Verify Location**
+1. **Verify Location**
 
    ```bash
    # Should be in project root
@@ -83,7 +83,7 @@ python -m core.examples.mssql_demo
 
 ### Expected Output Structure
 
-```
+```plaintext
 Initializing connector...
 Testing connection...
 Executing queries...

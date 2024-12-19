@@ -4,8 +4,8 @@ from typing import Dict, List, Any, Optional
 import pandas as pd
 from datetime import datetime
 
-from db_connector.core.connector import DatabaseConnector, DatabaseError
-from db_connector.templates.constraints import (
+from core.connector import DatabaseConnector, DatabaseError, ConnectionError
+from templates.constraints import (
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
 )
@@ -22,7 +22,7 @@ def create_target_table(
     )"""
 
     # Using execute_ddl instead of direct cursor access
-    db.execute_ddl(create_query)
+    db.execute_statement(create_query)
 
 
 def validate_data(data: pd.DataFrame, required_columns: List[str]) -> bool:
