@@ -311,3 +311,5 @@ docker inspect duckdb-dev | grep Mounts -A 20
 ```
 
 This guide provides a comprehensive setup for DuckDB in a containerized environment, with support for Jupyter notebooks, data analysis, and various data formats. Would you like me to expand any particular section or add more specific details about certain features?
+
+Peter Heller
