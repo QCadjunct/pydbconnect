@@ -1,7 +1,7 @@
 """Database Connector Implementation."""
 
 from typing import Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+import os
 from contextlib import contextmanager
 import importlib
 import pandas as pd
@@ -10,7 +10,7 @@ from pathlib import Path
 from getpass import getpass
 from dotenv import load_dotenv
 from prettytable import PrettyTable
-import os
+
 from utils.decorators import preload_parameters, ensure_connected
 from templates.constraints import (
     ChangeDefaultUsernameAndPassword,
@@ -57,9 +57,7 @@ class DatabaseConnector:
         # Engine configuration
         self.target_database_engine_type = target_database_engine
         self.target_database_engine_name = target_database_engine.name
-        self.target_database_engine_connect_option = (
-            target_database_engine_connect_option
-        )
+        self.target_database_engine_connect_option = target_database_engine_connect_option
 
         # Connection state
         self._connection = None
@@ -69,9 +67,7 @@ class DatabaseConnector:
 
         # Load configuration
         self.engine_config = self._load_engine_config(templates)
-        self.change_database_usr_and_pwd_option = (
-            target_database_engine_connect_option.allow_credential_changes
-        )
+        self.change_database_usr_and_pwd_option = target_database_engine_connect_option.allow_credential_changes
 
         # Validate DSN support
         self._validate_dsn_support()
@@ -89,9 +85,7 @@ class DatabaseConnector:
         try:
             return getattr(templates, self.target_database_engine_name)
         except AttributeError as e:
-            raise DatabaseError(
-                f"Unsupported database engine: {self.target_database_engine_name}"
-            ) from e
+            raise DatabaseError(f"Unsupported database engine: {self.target_database_engine_name}") from e
 
     def _load_environment(self) -> None:
         """Load environment variables from .env file."""
@@ -102,12 +96,8 @@ class DatabaseConnector:
             if self.target_database_engine_name:
                 self._credentials.update(
                     {
-                        "username": os.getenv(
-                            f"{self.target_database_engine_name}_USERNAME", ""
-                        ),
-                        "password": os.getenv(
-                            f"{self.target_database_engine_name}_PASSWORD", ""
-                        ),
+                        "username": os.getenv(f"{self.target_database_engine_name}_USERNAME", ""),
+                        "password": os.getenv(f"{self.target_database_engine_name}_PASSWORD", ""),
                         "is_default": True,
                     }
                 )
@@ -116,39 +106,23 @@ class DatabaseConnector:
 
     def _validate_dsn_support(self) -> None:
         """Validate DSN support for engine."""
-        if (
-            not self.target_database_engine_type.supports_dsn
-            and self.target_database_engine_connect_option.uses_dsn
-        ):
-            raise ConnectionError(
-                f"DSN not supported by {self.target_database_engine_name}"
-            )
+        if not self.target_database_engine_type.supports_dsn and self.target_database_engine_connect_option.uses_dsn:
+            raise ConnectionError(f"DSN not supported by {self.target_database_engine_name}")
 
     def set_credentials_based_on_connect_option(self) -> "DatabaseConnector":
         """Set database credentials based on connection option."""
-        credential_change = (
-            self.target_database_engine_connect_option.allow_credential_changes
-        )
+        credential_change = self.target_database_engine_connect_option.allow_credential_changes
 
         if credential_change == 1:  # do_not_change_username_passord
             return self
 
         credential_mode = self.target_database_engine_connect_option.changes_credentials
         if credential_mode.changes_default_credentials:
-            show_password = (
-                credential_mode
-                == ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow
-            )
+            show_password = credential_mode == ChangeDefaultUsernameAndPassword.ChangeUserAndPwdPlusShow
             username = input("Enter database username: ")
-            password = (
-                input("Enter database password: ")
-                if show_password
-                else getpass("Enter database password: ")
-            )
+            password = input("Enter database password: ") if show_password else getpass("Enter database password: ")
 
-            self._credentials.update(
-                {"username": username, "password": password, "is_default": False}
-            )
+            self._credentials.update({"username": username, "password": password, "is_default": False})
         return self
 
     def _get_default_parameters(self) -> Dict[str, Any]:
@@ -169,16 +143,14 @@ class DatabaseConnector:
             engine_template = getattr(templates, self.target_database_engine_name)
 
             if self.target_database_engine_connect_option.uses_dsn:
-                connection_string = engine_template[self.target_database_engine_name][
-                    "FINALIZED_CONNECTION_PARAMS"
-                ]["LAMBDA_FINALIZED_DSN_CONNECTION_STRING"](engine_template)
+                connection_string = engine_template[self.target_database_engine_name]["FINALIZED_CONNECTION_PARAMS"][
+                    "LAMBDA_FINALIZED_DSN_CONNECTION_STRING"
+                ](engine_template)
             else:
-                engine_template[self.target_database_engine_name][
-                    "DEFAULT_PARAMETERS"
-                ].update(params)
-                connection_string = engine_template[self.target_database_engine_name][
-                    "FINALIZED_CONNECTION_PARAMS"
-                ]["LAMBDA_FINALIZED_BASE_CONNECTION_STRING"](engine_template)
+                engine_template[self.target_database_engine_name]["DEFAULT_PARAMETERS"].update(params)
+                connection_string = engine_template[self.target_database_engine_name]["FINALIZED_CONNECTION_PARAMS"][
+                    "LAMBDA_FINALIZED_BASE_CONNECTION_STRING"
+                ](engine_template)
 
             if connection_string is None:
                 raise DatabaseError("Connection string generation not supported")
@@ -195,27 +167,19 @@ class DatabaseConnector:
         """Finalize connection parameters using engine's parameter loading methods."""
         try:
             engine_config = self.engine_config[self.target_database_engine_name]
-            format_config = engine_config["DEFAULT_PARAMETERS"][
-                "FORMAT_CONNECTION_STRING"
-            ]
+            format_config = engine_config["DEFAULT_PARAMETERS"]["FORMAT_CONNECTION_STRING"]
 
             if self.target_database_engine_connect_option.uses_dsn:
                 load_method = format_config["METHOD_LOAD_DSN_PARAMETER_KEYS_DICT"]
             else:
                 load_method = format_config["METHOD_LOAD_DEFAULT_PARAMETER_KEYS_DICT"]
 
-            default_params = load_method(
-                self.target_database_engine_name, self.engine_config
-            )
+            default_params = load_method(self.target_database_engine_name, self.engine_config)
             default_params.update(params)
 
             if engine_config["CREATE_DATABASE_CONNECTION"]["REQUIRES_CREDENTIALS"]:
-                if not all(
-                    [self._credentials["username"], self._credentials["password"]]
-                ):
-                    raise CredentialsError(
-                        "Username and password required but not provided"
-                    )
+                if not all([self._credentials["username"], self._credentials["password"]]):
+                    raise CredentialsError("Username and password required but not provided")
 
                 default_params.update(
                     {
@@ -239,14 +203,12 @@ class DatabaseConnector:
 
         try:
             if not self._module:
-                module_name = self.engine_config[self.target_database_engine_name][
-                    "CRUDBASIC"
-                ]["IMPORT"]
+                module_name = self.engine_config[self.target_database_engine_name]["CRUDBASIC"]["IMPORT"]
                 self._module = importlib.import_module(module_name)
 
-            connection_lambda = self.engine_config[self.target_database_engine_name][
-                "CREATE_DATABASE_CONNECTION"
-            ]["LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"](self._connection_string)
+            connection_lambda = self.engine_config[self.target_database_engine_name]["CREATE_DATABASE_CONNECTION"][
+                "LAMBDA_FINALIZED_PARAMETER_CONNECTION_STRING"
+            ](self._connection_string)
 
             self._connection = connection_lambda()
             self.is_database_active = True
@@ -274,9 +236,7 @@ class DatabaseConnector:
             cursor.close()
 
     @ensure_connected
-    def execute_query_to_dataframe(
-        self, query: str, index_col: Optional[str] = None
-    ) -> pd.DataFrame:
+    def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> pd.DataFrame:
         """Execute query and return results as DataFrame."""
         if not self._connection or not self.is_database_active:
             raise ConnectionError("Database connection not active")
@@ -296,9 +256,7 @@ class DatabaseConnector:
             raise DatabaseError(f"Query execution failed: {e}")
 
     @ensure_connected
-    def execute_query_to_prettytable(
-        self, query: str, print_result: bool = False
-    ) -> Optional[PrettyTable]:
+    def execute_query_to_prettytable(self, query: str, print_result: bool = False) -> Optional[PrettyTable]:
         """Execute query and return/print results as PrettyTable."""
         if not self._connection or not self.is_database_active:
             raise ConnectionError("Database connection not active")
@@ -338,9 +296,7 @@ class DatabaseConnector:
             raise DatabaseError(f"Statement execution failed: {e}")
 
     @ensure_connected
-    def execute(
-        self, sql: str, params: Optional[Tuple[Any, ...]] = None
-    ) -> "DatabaseConnector":
+    def execute(self, sql: str, params: Optional[Tuple[Any, ...]] = None) -> "DatabaseConnector":
         """Execute a general SQL statement (DML or DDL).
 
         Args:
@@ -398,11 +354,10 @@ class DatabaseConnector:
 
 
 if __name__ == "__main__":
-    import os
 
     print("\nWarning: This is the core connector module.")
     print("For examples, please run files in core/examples/ instead.")
-    print(f"\nDebug Info:")
+    print("\nDebug Info:")
     print(f"Current directory: {os.getcwd()}")
     print(f"Current file: {__file__}")
     print(f"Environment variables: {os.environ}")

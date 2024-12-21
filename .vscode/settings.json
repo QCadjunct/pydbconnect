@@ -12,7 +12,10 @@
     "python.envFile": "${workspaceFolder}/.env",
     // Code analysis and formatting
     "python.analysis.typeCheckingMode": "basic",
-    "python.formatting.provider": "black",
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "flake8.args": [
+        "--max-line-length=120"
+        ],   
     "editor.formatOnSave": true,
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": true,

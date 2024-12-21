@@ -9,9 +9,7 @@ class TypeMapping:
     source_type: str
     target_type: str
     is_problematic_lossy: bool  # True if data loss risk requires attention
-    fallback_type: Optional[str] = (
-        None  # Similar to COALESCE, provides safe alternative
-    )
+    fallback_type: Optional[str] = None  # Similar to COALESCE, provides safe alternative
     max_length: Optional[int] = None
     precision: Optional[int] = None
     scale: Optional[int] = None
@@ -139,9 +137,7 @@ TYPE_MAPPINGS: Dict[str, Dict[str, Any]] = {
 }
 
 
-def get_type_mapping(
-    source_db: str, target_db: str, source_type: str
-) -> Tuple[TypeMapping, bool]:
+def get_type_mapping(source_db: str, target_db: str, source_type: str) -> Tuple[TypeMapping, bool]:
     """
     Get type mapping between source and target databases with fallback handling.
     Returns tuple of (mapping, used_fallback) where used_fallback indicates if primary mapping was found.

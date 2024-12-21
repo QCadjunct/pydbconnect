@@ -32,17 +32,13 @@ def main():
         )
 
         # Get source data
-        source_data = multi_db.execute_query(
-            "SELECT id, name, value FROM source_table", alias="source_db"
-        )
+        source_data = multi_db.execute_query("SELECT id, name, value FROM source_table", alias="source_db")
 
         # Update target database
         for _, row in source_data.iterrows():
             # Check if record exists
             check_query = "SELECT id FROM target_table WHERE id = %s"
-            exists = multi_db.execute_query(
-                check_query, alias="target_db", params=(row["id"],)
-            )
+            exists = multi_db.execute_query(check_query, alias="target_db", params=(row["id"],))
 
             with multi_db.transaction("target_db"):
                 if exists.empty:
@@ -52,9 +48,7 @@ def main():
                         VALUES (%s, %s, %s)
                     """
                     with multi_db.cursor("target_db") as cursor:
-                        cursor.execute(
-                            insert_query, (row["id"], row["name"], row["value"])
-                        )
+                        cursor.execute(insert_query, (row["id"], row["name"], row["value"]))
                 else:
                     # Update existing record
                     update_query = """
@@ -63,9 +57,7 @@ def main():
                         WHERE id = %s
                     """
                     with multi_db.cursor("target_db") as cursor:
-                        cursor.execute(
-                            update_query, (row["name"], row["value"], row["id"])
-                        )
+                        cursor.execute(update_query, (row["name"], row["value"], row["id"]))
 
         print("Data synchronization completed successfully")
 

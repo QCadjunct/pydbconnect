@@ -107,9 +107,7 @@ class TargetDatabaseEngine(Enum):
         """Get SQL parameter placeholder for this engine."""
         return self.engine_config.get("CRUDBASIC", {}).get("PARAMETER_PLACEHOLDER", "?")
 
-    def validate_connection_option(
-        self, option: "TargetDatabaseConnectionStringOption"
-    ) -> bool:
+    def validate_connection_option(self, option: "TargetDatabaseConnectionStringOption") -> bool:
         """
         Validate if the connection option is compatible with this engine.
 
@@ -189,11 +187,7 @@ class TargetDatabaseConnectionStringOption(Enum):
     @property
     def uses_custom_format(self) -> bool:
         """Check if this option uses custom connection string format."""
-        return (
-            True
-            if self.target_database_connection_string_option in (3, 4, 7, 8)
-            else False
-        )
+        return True if self.target_database_connection_string_option in (3, 4, 7, 8) else False
 
     @property
     def changes_default_credentials(self) -> bool:
@@ -346,9 +340,7 @@ class FileFormat(Enum):
     SQL = (FileExtension.SQL, pd.read_sql, WriterMethod.SQL)
     STATA = (FileExtension.STATA, pd.read_stata, WriterMethod.STATA)
 
-    def __init__(
-        self, extension: FileExtension, reader: Callable, writer_method: WriterMethod
-    ):
+    def __init__(self, extension: FileExtension, reader: Callable, writer_method: WriterMethod):
         self._extension = extension
         self._reader = reader
         self._writer_method = writer_method

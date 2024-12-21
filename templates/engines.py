@@ -19,9 +19,7 @@ def get_db_target_engine_module(module_name: str) -> Any:
     try:
         return importlib.import_module(module_name)
     except ImportError as e:
-        raise ImportError(
-            f"Failed to import {module_name}. Make sure it's installed."
-        ) from e
+        raise ImportError(f"Failed to import {module_name}. Make sure it's installed.") from e
 
 
 def load_default_parameter_keys_dict(
@@ -46,9 +44,7 @@ def load_default_parameter_keys_dict(
     }
 
 
-def load_dsn_parameter_keys_dict(
-    target_database_engine: str, d: Dict[str, Any]
-) -> Dict[str, Any]:
+def load_dsn_parameter_keys_dict(target_database_engine: str, d: Dict[str, Any]) -> Dict[str, Any]:
     """
     Load DSN parameters excluding credentials.
 
@@ -96,9 +92,9 @@ MSSQL: Dict[str, Dict[str, Any]] = {
             },
         },
         "FINALIZED_CONNECTION_PARAMS": {
-            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["MSSQL"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["MSSQL"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_CONNECTION_STRING"].format(
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["DRIVER"],
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["SERVER"],
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["PORT_NUMBER"],
@@ -106,9 +102,9 @@ MSSQL: Dict[str, Dict[str, Any]] = {
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["USERNAME"],
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["PASSWORD"],
             ),
-            "LAMBDA_FINALIZED_DSN_CONNECTION_STRING": lambda d: d["MSSQL"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_ODBC_DSN_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_DSN_CONNECTION_STRING": lambda d: d["MSSQL"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_ODBC_DSN_CONNECTION_STRING"].format(
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["DSN_NAME"],
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["USERNAME"],
                 d["MSSQL"]["DEFAULT_PARAMETERS"]["PASSWORD"],
@@ -202,9 +198,9 @@ MYSQL: Dict[str, Dict[str, Any]] = {
             },
         },
         "FINALIZED_CONNECTION_PARAMS": {
-            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["MYSQL"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["MYSQL"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_CONNECTION_STRING"].format(
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["DRIVER"],
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["SERVER"],
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["PORT_NUMBER"],
@@ -213,9 +209,9 @@ MYSQL: Dict[str, Dict[str, Any]] = {
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["PASSWORD"],
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["CHARSET"],
             ),
-            "LAMBDA_FINALIZED_DSN_CONNECTION_STRING": lambda d: d["MYSQL"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_ODBC_DSN_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_DSN_CONNECTION_STRING": lambda d: d["MYSQL"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_ODBC_DSN_CONNECTION_STRING"].format(
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["DSN_NAME"],
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["USERNAME"],
                 d["MYSQL"]["DEFAULT_PARAMETERS"]["PASSWORD"],
@@ -236,9 +232,7 @@ MYSQL: Dict[str, Dict[str, Any]] = {
             ),
         },
         "IS_ISOLATION_SUPPORTED": True,
-        "TRANSACTION_MANAGEMENT": {
-            "GET_ISOLATION_LEVEL_QUERY": "SHOW TRANSACTION ISOLATION LEVEL"
-        },
+        "TRANSACTION_MANAGEMENT": {"GET_ISOLATION_LEVEL_QUERY": "SHOW TRANSACTION ISOLATION LEVEL"},
     }
 }
 
@@ -342,16 +336,16 @@ SQLITE3: Dict[str, Dict[str, Any]] = {
             },
         },
         "FINALIZED_CONNECTION_PARAMS": {
-            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["SQLITE3"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["SQLITE3"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_CONNECTION_STRING"].format(
                 d["SQLITE3"]["DEFAULT_PARAMETERS"]["DRIVER"],
                 d["SQLITE3"]["DEFAULT_PARAMETERS"]["FULLY_QUALIFIED_PATH"],
                 "\\" + d["SQLITE3"]["DEFAULT_PARAMETERS"]["DATABASE_NAME"],
             ),
-            "LAMBDA_FINALIZED_DSN_CONNECTION_STRING": lambda d: d["SQLITE3"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_ODBC_DSN_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_DSN_CONNECTION_STRING": lambda d: d["SQLITE3"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_ODBC_DSN_CONNECTION_STRING"].format(
                 d["SQLITE3"]["DEFAULT_PARAMETERS"]["DSN_NAME"]
             ),
         },
@@ -400,9 +394,9 @@ DUCKDB: Dict[str, Dict[str, Any]] = {
             },
         },
         "FINALIZED_CONNECTION_PARAMS": {
-            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["DUCKDB"][
-                "DEFAULT_PARAMETERS"
-            ]["FORMAT_CONNECTION_STRING"]["BASE_CONNECTION_STRING"].format(
+            "LAMBDA_FINALIZED_BASE_CONNECTION_STRING": lambda d: d["DUCKDB"]["DEFAULT_PARAMETERS"][
+                "FORMAT_CONNECTION_STRING"
+            ]["BASE_CONNECTION_STRING"].format(
                 d["DUCKDB"]["DEFAULT_PARAMETERS"]["FULLY_QUALIFIED_PATH"],
                 d["DUCKDB"]["DEFAULT_PARAMETERS"]["DATABASE_NAME"],
             ),

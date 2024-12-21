@@ -77,9 +77,7 @@ def transfer_adventureworks(
         file_path = temp_path / f"{row['TABLE_NAME']}.{file_format.value}"
         df.to_parquet(str(file_path), index=False)
 
-        target.execute_ddl(
-            f"CREATE TABLE {row['TABLE_NAME']} AS SELECT * FROM '{str(file_path)}'"
-        )
+        target.execute_ddl(f"CREATE TABLE {row['TABLE_NAME']} AS SELECT * FROM '{str(file_path)}'")
 
         table_end = datetime.now()
         metrics.append(

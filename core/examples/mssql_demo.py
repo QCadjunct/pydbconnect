@@ -33,9 +33,7 @@ def main():
 
             # Version check
             print("\n1. SQL Server Version:")
-            conn.execute_query_to_prettytable(
-                "SELECT @@VERSION as Version", print_result=True
-            )
+            conn.execute_query_to_prettytable("SELECT @@VERSION as Version", print_result=True)
 
             # Product query
             print("\n2. Sample Products:")

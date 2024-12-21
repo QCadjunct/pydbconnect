@@ -7,11 +7,9 @@ import pandas as pd
 
 from templates.constraints import (
     FileFormat,
-    TargetDatabaseEngine,
-    TargetDatabaseConnectionStringOption,
     TransferMetrics,
 )
-from core.connector import DatabaseConnector, DatabaseError
+from core.connector import DatabaseConnector
 
 
 class DatabaseETL:
@@ -34,7 +32,7 @@ class DatabaseETL:
     def get_column_metadata(self, table_name: str) -> pd.DataFrame:
         """Get column metadata for table."""
         query = f"""
-        SELECT 
+        SELECT
             COLUMN_NAME,
             DATA_TYPE,
             CHARACTER_MAXIMUM_LENGTH,
@@ -81,9 +79,7 @@ class DatabaseETL:
                 source_columns=len(columns_df),
                 target_columns=len(columns_df),  # Same for DuckDB
                 source_data_types=columns_df["DATA_TYPE"].tolist(),
-                target_data_types=columns_df[
-                    "DATA_TYPE"
-                ].tolist(),  # DuckDB preserves types
+                target_data_types=columns_df["DATA_TYPE"].tolist(),  # DuckDB preserves types
             )
 
             return True, df.shape[0], metrics
@@ -141,7 +137,7 @@ class DatabaseETL:
             excluded_tables_clause = f"AND TABLE_NAME NOT IN ({excluded_tables_list})"
 
         query = f"""
-        SELECT 
+        SELECT
             TABLE_NAME,
             COLUMN_NAME AS table_name_key
         FROM INFORMATION_SCHEMA.TABLES

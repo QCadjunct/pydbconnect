@@ -37,9 +37,7 @@ def validate_source_data(data: pd.DataFrame, required_columns: List[str]) -> boo
 
     null_counts = data[required_columns].isnull().sum()
     if null_counts.any():
-        raise ValueError(
-            f"Null values found in columns: {null_counts[null_counts > 0]}"
-        )
+        raise ValueError(f"Null values found in columns: {null_counts[null_counts > 0]}")
 
     return True
 
@@ -107,9 +105,7 @@ def transfer_data(
 
         # Transfer data
         print("Starting data transfer...")
-        stats["processed_rows"] = process_data_batch(
-            db, target_alias, target_table, source_data, batch_size
-        )
+        stats["processed_rows"] = process_data_batch(db, target_alias, target_table, source_data, batch_size)
 
         stats["status"] = "completed"
 
@@ -145,18 +141,14 @@ def main():
                 "sqlite_source",
                 TargetDatabaseEngine.SQLITE3,
                 TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
-            ).prepare_connection("sqlite_source", database="source.db").connect(
-                "sqlite_source"
-            )
+            ).prepare_connection("sqlite_source", database="source.db").connect("sqlite_source")
 
             # Attach target database (PostgreSQL)
             db.attach_database(
                 "postgres_target",
                 TargetDatabaseEngine.POSTGRESQL,
                 TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
-            ).prepare_connection(
-                "postgres_target", host="localhost", port=5432, database="target_db"
-            ).set_credentials(
+            ).prepare_connection("postgres_target", host="localhost", port=5432, database="target_db").set_credentials(
                 "postgres_target"
             ).connect(
                 "postgres_target"

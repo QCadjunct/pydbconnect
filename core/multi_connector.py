@@ -97,9 +97,7 @@ class MultiDatabaseConnector:
         except Exception as e:
             raise DatabaseError(f"Failed to attach database {alias}: {str(e)}")
 
-    def set_credentials(
-        self, alias: str, show_password: bool = False
-    ) -> "MultiDatabaseConnector":
+    def set_credentials(self, alias: str, show_password: bool = False) -> "MultiDatabaseConnector":
         """Set credentials for specified database."""
         if alias not in self.database_instances:
             raise DatabaseError(f"Database {alias} not attached")
@@ -108,14 +106,10 @@ class MultiDatabaseConnector:
         if instance["config"]["REQUIRES_CREDENTIALS"]:
             username = input(f"Enter username for {alias}: ")
             password = (
-                input(f"Enter password for {alias}: ")
-                if show_password
-                else getpass(f"Enter password for {alias}: ")
+                input(f"Enter password for {alias}: ") if show_password else getpass(f"Enter password for {alias}: ")
             )
 
-            instance["credentials"].update(
-                {"username": username, "password": password, "is_default": False}
-            )
+            instance["credentials"].update({"username": username, "password": password, "is_default": False})
 
         return self
 
@@ -159,9 +153,7 @@ class MultiDatabaseConnector:
                     }
                 )
 
-            instance["connection_string"] = self._build_connection_string(
-                alias, default_params
-            )
+            instance["connection_string"] = self._build_connection_string(alias, default_params)
             return self
         except Exception as e:
             raise DatabaseError(f"Failed to prepare connection for {alias}: {e}")
@@ -224,9 +216,7 @@ class MultiDatabaseConnector:
         batch_size: int = 1000,
     ) -> None:
         """Copy table between databases."""
-        if not all(
-            alias in self.database_instances for alias in [source_alias, target_alias]
-        ):
+        if not all(alias in self.database_instances for alias in [source_alias, target_alias]):
             raise DatabaseError("Source or target database not attached")
 
         try:
@@ -246,9 +236,7 @@ class MultiDatabaseConnector:
             offset = 0
             while True:
                 # Get batch of data
-                select_query = (
-                    f"SELECT * FROM {table_name} LIMIT {batch_size} OFFSET {offset}"
-                )
+                select_query = f"SELECT * FROM {table_name} LIMIT {batch_size} OFFSET {offset}"
                 batch_df = self.execute_query(select_query, source_alias)
                 if batch_df.empty:
                     break
@@ -277,9 +265,7 @@ class MultiDatabaseConnector:
             raise ConnectionError(f"Database {target} not connected")
 
         if self._active_transaction and self._active_transaction != target:
-            raise DatabaseError(
-                f"Transaction already active on {self._active_transaction}"
-            )
+            raise DatabaseError(f"Transaction already active on {self._active_transaction}")
 
         connection = self.database_connections[target]
         try:

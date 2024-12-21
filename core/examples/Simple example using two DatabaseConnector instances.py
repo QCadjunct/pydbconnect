@@ -11,9 +11,7 @@ from templates.constraints import (
 )
 
 
-def create_target_table(
-    db: DatabaseConnector, table_name: str, columns: Dict[str, str]
-) -> None:
+def create_target_table(db: DatabaseConnector, table_name: str, columns: Dict[str, str]) -> None:
     """Create target table if doesn't exist."""
     columns_def = [f"{name} {dtype}" for name, dtype in columns.items()]
     create_query = f"""
@@ -35,9 +33,7 @@ def validate_data(data: pd.DataFrame, required_columns: List[str]) -> bool:
     # Check for null values in required columns
     null_counts = data[required_columns].isnull().sum()
     if null_counts.any():
-        raise ValueError(
-            f"Null values found in columns: {null_counts[null_counts > 0]}"
-        )
+        raise ValueError(f"Null values found in columns: {null_counts[null_counts > 0]}")
 
     return True
 
@@ -99,9 +95,7 @@ def transfer_data(
 
         # Process in batches
         print(f"Starting batch processing at {datetime.now()}")
-        stats["processed_rows"] = process_batch(
-            target_db, target_table, source_data, batch_size
-        )
+        stats["processed_rows"] = process_batch(target_db, target_table, source_data, batch_size)
 
         stats["status"] = "completed"
         print(f"Processed {stats['processed_rows']} of {stats['total_rows']} rows")
@@ -143,14 +137,10 @@ def main():
         }
 
         # Connect and transfer
-        with source_db.finalization_of_connection_parameters(
-            database="source.db"
-        ).connect_to_database() as source:
+        with source_db.finalization_of_connection_parameters(database="source.db").connect_to_database() as source:
 
             with (
-                target_db.finalization_of_connection_parameters(
-                    host="localhost", port=5432, database="target_db"
-                )
+                target_db.finalization_of_connection_parameters(host="localhost", port=5432, database="target_db")
                 .set_credentials_based_on_connect_option()
                 .connect_to_database() as target
             ):

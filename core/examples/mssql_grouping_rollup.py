@@ -14,9 +14,7 @@ def main():
         print("\nInitializing connector...")
         db = DatabaseConnector(
             target_database_engine=(TargetDatabaseEngine.MSSQL),
-            target_database_engine_connect_option=(
-                TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd
-            ),
+            target_database_engine_connect_option=(TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd),
         )
 
         # Test connection
@@ -35,9 +33,7 @@ def main():
 
             # Version check
             print("\n1. SQL Server Version:")
-            conn.execute_query_to_prettytable(
-                "SELECT @@VERSION as Version", print_result=True
-            )
+            conn.execute_query_to_prettytable("SELECT @@VERSION as Version", print_result=True)
 
             # Product query
             print("\n2. rollup(hierarchically using scalar functions (inefficient):")

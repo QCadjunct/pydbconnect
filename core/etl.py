@@ -32,9 +32,7 @@ class DatabaseETL:
 
     def get_metadata_query(self, excluded_tables: Optional[List[str]] = None) -> str:
         """Get metadata query from engine template."""
-        engine_config = self.source_db.engine_config[
-            self.source_db.target_database_engine_name
-        ]
+        engine_config = self.source_db.engine_config[self.source_db.target_database_engine_name]
         metadata_config = engine_config.get("METADATA_QUERIES", {})
 
         # Handle None case explicitly
@@ -49,25 +47,19 @@ class DatabaseETL:
 
         return query.format(excluded_tables=excluded_list)
 
-    def _transfer_table_duckdb(
-        self, table_name: str, key_column: str
-    ) -> Tuple[bool, int]:
+    def _transfer_table_duckdb(self, table_name: str, key_column: str) -> Tuple[bool, int]:
         """Transfer single table with cleanup for DuckDB target."""
         temp_file = self.temp_path / f"{table_name}.{self.file_format.extension}"
 
         try:
             # Extract data
-            df = self.source_db.execute_query_to_dataframe(
-                f"SELECT * FROM {table_name} ORDER BY {key_column}"
-            )
+            df = self.source_db.execute_query_to_dataframe(f"SELECT * FROM {table_name} ORDER BY {key_column}")
 
             # Save using format-specific writer
             self.file_format.write_dataframe(df, str(temp_file))
 
             # Create target table
-            self.target_db.execute_statement(
-                f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'"
-            )
+            self.target_db.execute_statement(f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'")
 
             return True, df.shape[0]
 
@@ -83,9 +75,7 @@ class DatabaseETL:
         temp_file = self.temp_path / f"{table_name}.{self.file_format.value}"
 
         try:
-            df = self.source_db.execute_query_to_dataframe(
-                f"SELECT * FROM {table_name} ORDER BY {key_column}"
-            )
+            df = self.source_db.execute_query_to_dataframe(f"SELECT * FROM {table_name} ORDER BY {key_column}")
 
             if self.file_format == FileFormat.PARQUET:
                 df.to_parquet(str(temp_file))
@@ -94,9 +84,7 @@ class DatabaseETL:
             elif self.file_format == FileFormat.JSON:
                 df.to_json(str(temp_file))
 
-            self.target_db.execute_statement(
-                f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'"
-            )
+            self.target_db.execute_statement(f"CREATE TABLE {table_name} AS SELECT * FROM '{temp_file}'")
 
             return True, df.shape[0]
 
