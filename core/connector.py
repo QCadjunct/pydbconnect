@@ -1,6 +1,6 @@
 """Database Connector Implementation."""
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from dataclasses import dataclass
 from contextlib import contextmanager
 import importlib
@@ -11,6 +11,13 @@ from getpass import getpass
 from dotenv import load_dotenv
 from prettytable import PrettyTable
 import os
+from utils.decorators import preload_parameters, ensure_connected
+from templates.constraints import (
+    ChangeDefaultUsernameAndPassword,
+    TargetDatabaseEngine,
+    TargetDatabaseConnectionStringOption,
+)
+import templates.engines as templates
 
 # Exception definitions must come first
 #
@@ -36,15 +43,6 @@ class CredentialsError(DatabaseError):
     """Credential-related issues."""
 
     pass
-
-
-from utils.decorators import preload_parameters, ensure_connected
-from templates.constraints import (
-    ChangeDefaultUsernameAndPassword,
-    TargetDatabaseEngine,
-    TargetDatabaseConnectionStringOption,
-)
-import templates.engines as templates
 
 
 class DatabaseConnector:
@@ -105,10 +103,10 @@ class DatabaseConnector:
                 self._credentials.update(
                     {
                         "username": os.getenv(
-                            f"{self.target_database_engine_name}_USERNAME"
+                            f"{self.target_database_engine_name}_USERNAME", ""
                         ),
                         "password": os.getenv(
-                            f"{self.target_database_engine_name}_PASSWORD"
+                            f"{self.target_database_engine_name}_PASSWORD", ""
                         ),
                         "is_default": True,
                     }
@@ -334,6 +332,43 @@ class DatabaseConnector:
                 cursor.execute(sql)
                 if not getattr(self._connection, "closed", False):
                     self._connection.commit()
+        except Exception as e:
+            if not getattr(self._connection, "closed", False):
+                self._connection.rollback()
+            raise DatabaseError(f"Statement execution failed: {e}")
+
+    @ensure_connected
+    def execute(
+        self, sql: str, params: Optional[Tuple[Any, ...]] = None
+    ) -> "DatabaseConnector":
+        """Execute a general SQL statement (DML or DDL).
+
+        Args:
+            sql: SQL statement to execute
+            params: Optional parameters for the SQL statement
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            ConnectionError: If database connection is not active
+            DatabaseError: If statement execution fails
+        """
+        if not self._connection or not self.is_database_active:
+            raise ConnectionError("Database connection not active")
+
+        try:
+            with self._cursor() as cursor:
+                if params is not None:
+                    cursor.execute(sql, params)
+                else:
+                    cursor.execute(sql)
+
+                if not getattr(self._connection, "closed", False):
+                    self._connection.commit()
+
+            return self
+
         except Exception as e:
             if not getattr(self._connection, "closed", False):
                 self._connection.rollback()
