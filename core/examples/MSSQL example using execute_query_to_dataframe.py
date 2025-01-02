@@ -1,7 +1,7 @@
-"""MSSQL Example using execute_query_to_dataframe with fluent design."""
+"""MSSQL Example using execute_query_to_dataframe with fluent design and advanced format options."""
 
 from pathlib import Path
-from core.connector import DatabaseConnector
+from core.connector import DatabaseConnector, FormatOptions
 from templates.constraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption, FileFormat
 
 
@@ -58,7 +58,7 @@ def main():
         output_dir.mkdir(parents=True, exist_ok=True)
         print(f"\nOutput directory: {output_dir}")
 
-        # Example 1: Chain to CSV then get DataFrame
+        # Example 1: Basic CSV Export
         print("\n=== Example 1: Basic CSV Export ===")
         df1 = (
             connector.execute_query_to_dataframe(query)
@@ -69,8 +69,8 @@ def main():
         print("\nData without index:")
         print(df1.head())
 
-        # Example 2: Chain with index and multiple formats
-        print("\n=== Example 2: Multi-format Export ===")
+        # Example 2: Multi-format Export with basic options
+        print("\n=== Example 2: Multi-format Export (Basic) ===")
         df2 = (
             connector.execute_query_to_dataframe(query, index_col="Shipper")
             .save_to_file(output_dir / "shipper_analysis.csv", file_format=FileFormat.CSV, index=True)
@@ -80,8 +80,51 @@ def main():
             .to_dataframe()
         )
 
-        print("\nData with Shipper as index:")
+        print("\nData with Shipper as index (basic options):")
         print(df2.head())
+
+        # Example 3: Advanced Format Options
+        print("\n=== Example 3: Advanced Format Options ===")
+
+        # Define advanced format options
+        format_options = FormatOptions(
+            compression="gzip",
+            encoding="utf-8",
+            batch_size=1000,
+            csv_options={"sep": ";", "date_format": "%Y-%m-%d"},
+            excel_options={"sheet_name": "Shipping Analysis", "freeze_panes": (1, 0)},
+            parquet_options={"engine": "pyarrow", "compression": "snappy"},
+        )
+
+        # Apply advanced options with batching
+        df3 = (
+            connector.execute_query_to_dataframe(query, index_col="Shipper")
+            .save_to_file(
+                output_dir / "shipper_analysis_advanced.csv",
+                file_format=FileFormat.CSV,
+                format_options=format_options,
+                index=True,
+            )
+            .save_to_file(
+                output_dir / "shipper_analysis_advanced.xlsx",
+                file_format=FileFormat.XLSX,
+                format_options=format_options,
+            )
+            .save_to_file(
+                output_dir / "shipper_analysis_advanced.parquet",
+                file_format=FileFormat.PARQUET,
+                format_options=format_options,
+            )
+            .to_dataframe()
+        )
+
+        print("\nData with advanced format options:")
+        print(df3.head())
+
+        # Display available files
+        print("\nGenerated files:")
+        for file in sorted(output_dir.glob("*.*")):
+            print(f"- {file.name}")
 
     except Exception as e:
         print(f"Database operation failed: {str(e)}")

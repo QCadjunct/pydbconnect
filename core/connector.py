@@ -10,6 +10,7 @@ from pathlib import Path
 from getpass import getpass
 from dotenv import load_dotenv
 from prettytable import PrettyTable
+from dataclasses import dataclass
 
 from utils.decorators import preload_parameters, ensure_connected
 
@@ -21,12 +22,54 @@ from templates.constraints import (
 )
 import templates.engines as templates
 
+
+@dataclass
+class FormatOptions:
+    """Configuration options for file format handling."""
+
+    compression: Optional[str] = None
+    encoding: Optional[str] = None
+    date_format: Optional[str] = None
+    float_format: Optional[str] = None
+    batch_size: Optional[int] = None
+    chunk_size: Optional[int] = None
+
+    # Format-specific options
+    excel_options: Optional[Dict[str, Any]] = None
+    json_options: Optional[Dict[str, Any]] = None
+    csv_options: Optional[Dict[str, Any]] = None
+    parquet_options: Optional[Dict[str, Any]] = None
+
+    def get_format_options(self, file_format: FileFormat) -> Dict[str, Any]:
+        """Get options specific to a file format.
+
+        Args:
+            file_format: The FileFormat enum member
+
+        Returns:
+            Dictionary of format-specific options
+        """
+        base_options = {
+            "compression": self.compression,
+            "encoding": self.encoding,
+        }
+
+        format_specific = {
+            FileFormat.CSV: self.csv_options or {},
+            FileFormat.EXCEL: self.excel_options or {},
+            FileFormat.JSON: self.json_options or {},
+            FileFormat.PARQUET: self.parquet_options or {},
+        }
+
+        options = base_options.copy()
+        options.update(format_specific.get(file_format, {}))
+
+        # Remove None values
+        return {k: v for k, v in options.items() if v is not None}
+
+
 # Exception definitions must come first
 #
-# The fundamental approach of having exceptions defined before imports
-# remains the same in both versions. Therefore, we should keep
-# the original format as it's working and
-# maintains your established code style.
 
 
 class DatabaseError(Exception):
@@ -237,69 +280,6 @@ class DatabaseConnector:
         finally:
             cursor.close()
 
-    # @ensure_connected
-    # def execute_query_to_dataframe(
-    #     self, query: str, index_col: Optional[str] = None
-    # ) -> Union["DatabaseConnector", pd.DataFrame]:
-    #     """Execute query and return results as DataFrame or continue chain."""
-    #     if not self._connection or not self.is_database_active:
-    #         raise ConnectionError("Database connection not active")
-
-    #     try:
-    #         with self._cursor() as cursor:
-    #             cursor.execute(query)
-    #             columns = [col[0] for col in cursor.description]
-    #             data = [list(row) for row in cursor.fetchall()]
-
-    #             df = pd.DataFrame(data, columns=columns) if data else pd.DataFrame()
-    #             if index_col and index_col in df.columns:
-    #                 df.set_index(index_col, inplace=True)
-
-    #             # Store DataFrame in connector for chaining
-    #             self._current_df = df
-    #             return self
-
-    #     except Exception as e:
-    #         raise DatabaseError(f"Query execution failed: {e}")
-
-    # def save_to_file(self, path: str, file_format: Optional[FileFormat] = None, **kwargs) -> "DatabaseConnector":
-    #     """Save current DataFrame using specified format.
-
-    #     Args:
-    #         path: Path to save file
-    #         file_format: FileFormat enum member. If None, inferred from path extension
-    #         **kwargs: Additional arguments for the writer method
-
-    #     Returns:
-    #         Self for method chaining
-    #     """
-    #     if not hasattr(self, "_current_df"):
-    #         return self
-
-    #     if file_format is None:
-    #         extension = path.split(".")[-1].lower()
-    #         file_format = FileFormat.from_extension(extension)
-    #         if file_format is None:
-    #             raise ValueError(f"Unsupported file extension: {extension}")
-
-    #     file_format.write_dataframe(self._current_df, path, **kwargs)
-    #     return self
-
-    # def to_dataframe(self) -> pd.DataFrame:
-    #     """Get the current DataFrame and clear it from memory.
-
-    #     Returns:
-    #         The current DataFrame
-    #     """
-    #     if not hasattr(self, "_current_df"):
-    #         return pd.DataFrame()
-
-    #     df = self._current_df
-    #     del self._current_df
-    #     return df
-
-    # Add these methods to your DatabaseConnector class
-
     @ensure_connected
     def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> "DatabaseConnector":
         """Execute query and return connector for chaining."""
@@ -353,10 +333,62 @@ class DatabaseConnector:
         except ImportError:
             return False
 
+    # def save_to_file(
+    #     self, path: Union[str, Path], file_format: Optional[FileFormat] = None, **kwargs
+    # ) -> "DatabaseConnector":
+    #     """Save current DataFrame using specified format with dependency checking."""
+    #     if not hasattr(self, "_current_df"):
+    #         return self
+
+    #     path = Path(path)
+    #     if file_format is None:
+    #         extension = path.suffix.lstrip(".")
+    #         file_format = FileFormat.from_extension(extension)
+    #         if file_format is None:
+    #             raise ValueError(f"Unsupported file extension: {extension}")
+
+    #     # Check dependencies
+    #     if not self._check_format_dependencies(file_format):
+    #         format_to_package = {
+    #             FileFormat.XLSX: "openpyxl",
+    #             FileFormat.XLS: "openpyxl",
+    #             FileFormat.PARQUET: "pyarrow",
+    #             FileFormat.FEATHER: "pyarrow",
+    #             FileFormat.ORC: "pyarrow",
+    #             FileFormat.HDF: "tables",
+    #         }
+    #         package = format_to_package.get(file_format, "unknown")
+    #         print(f"Warning: {file_format.name} format requires {package}. Skipping file: {path}")
+    #         return self
+
+    #     try:
+    #         # Ensure directory exists
+    #         path.parent.mkdir(parents=True, exist_ok=True)
+    #         file_format.write_dataframe(self._current_df, str(path), **kwargs)
+    #         print(f"Saved: {path}")
+    #     except Exception as e:
+    #         print(f"Warning: Failed to save {path}: {str(e)}")
+
+    #     return self
+
     def save_to_file(
-        self, path: Union[str, Path], file_format: Optional[FileFormat] = None, **kwargs
+        self,
+        path: Union[str, Path],
+        file_format: Optional[FileFormat] = None,
+        format_options: Optional[FormatOptions] = None,
+        **kwargs,
     ) -> "DatabaseConnector":
-        """Save current DataFrame using specified format with dependency checking."""
+        """Save current DataFrame using specified format with options.
+
+        Args:
+            path: Path to save file
+            file_format: Optional FileFormat enum member
+            format_options: Optional FormatOptions for additional configuration
+            **kwargs: Additional keyword arguments for the writer
+
+        Returns:
+            Self for method chaining
+        """
         if not hasattr(self, "_current_df"):
             return self
 
@@ -384,8 +416,26 @@ class DatabaseConnector:
         try:
             # Ensure directory exists
             path.parent.mkdir(parents=True, exist_ok=True)
-            file_format.write_dataframe(self._current_df, str(path), **kwargs)
+
+            # Merge format options with kwargs
+            save_kwargs = kwargs.copy()
+            if format_options:
+                save_kwargs.update(format_options.get_format_options(file_format))
+
+                # Handle batch processing if specified
+                if format_options.batch_size and hasattr(self._current_df, "shape"):
+                    total_rows = self._current_df.shape[0]
+                    for i in range(0, total_rows, format_options.batch_size):
+                        batch_df = self._current_df.iloc[i : i + format_options.batch_size]
+                        batch_path = path.parent / f"{path.stem}_batch_{i//format_options.batch_size}{path.suffix}"
+                        file_format.write_dataframe(batch_df, str(batch_path), **save_kwargs)
+                        print(f"Saved batch: {batch_path}")
+                    return self
+
+            # Regular save without batching
+            file_format.write_dataframe(self._current_df, str(path), **save_kwargs)
             print(f"Saved: {path}")
+
         except Exception as e:
             print(f"Warning: Failed to save {path}: {str(e)}")
 
