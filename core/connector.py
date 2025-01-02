@@ -1,6 +1,6 @@
 """Database Connector Implementation."""
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, Union
 import os
 from contextlib import contextmanager
 import importlib
@@ -12,10 +12,12 @@ from dotenv import load_dotenv
 from prettytable import PrettyTable
 
 from utils.decorators import preload_parameters, ensure_connected
+
 from templates.constraints import (
     ChangeDefaultUsernameAndPassword,
     TargetDatabaseEngine,
     TargetDatabaseConnectionStringOption,
+    FileFormat,
 )
 import templates.engines as templates
 
@@ -235,9 +237,72 @@ class DatabaseConnector:
         finally:
             cursor.close()
 
+    # @ensure_connected
+    # def execute_query_to_dataframe(
+    #     self, query: str, index_col: Optional[str] = None
+    # ) -> Union["DatabaseConnector", pd.DataFrame]:
+    #     """Execute query and return results as DataFrame or continue chain."""
+    #     if not self._connection or not self.is_database_active:
+    #         raise ConnectionError("Database connection not active")
+
+    #     try:
+    #         with self._cursor() as cursor:
+    #             cursor.execute(query)
+    #             columns = [col[0] for col in cursor.description]
+    #             data = [list(row) for row in cursor.fetchall()]
+
+    #             df = pd.DataFrame(data, columns=columns) if data else pd.DataFrame()
+    #             if index_col and index_col in df.columns:
+    #                 df.set_index(index_col, inplace=True)
+
+    #             # Store DataFrame in connector for chaining
+    #             self._current_df = df
+    #             return self
+
+    #     except Exception as e:
+    #         raise DatabaseError(f"Query execution failed: {e}")
+
+    # def save_to_file(self, path: str, file_format: Optional[FileFormat] = None, **kwargs) -> "DatabaseConnector":
+    #     """Save current DataFrame using specified format.
+
+    #     Args:
+    #         path: Path to save file
+    #         file_format: FileFormat enum member. If None, inferred from path extension
+    #         **kwargs: Additional arguments for the writer method
+
+    #     Returns:
+    #         Self for method chaining
+    #     """
+    #     if not hasattr(self, "_current_df"):
+    #         return self
+
+    #     if file_format is None:
+    #         extension = path.split(".")[-1].lower()
+    #         file_format = FileFormat.from_extension(extension)
+    #         if file_format is None:
+    #             raise ValueError(f"Unsupported file extension: {extension}")
+
+    #     file_format.write_dataframe(self._current_df, path, **kwargs)
+    #     return self
+
+    # def to_dataframe(self) -> pd.DataFrame:
+    #     """Get the current DataFrame and clear it from memory.
+
+    #     Returns:
+    #         The current DataFrame
+    #     """
+    #     if not hasattr(self, "_current_df"):
+    #         return pd.DataFrame()
+
+    #     df = self._current_df
+    #     del self._current_df
+    #     return df
+
+    # Add these methods to your DatabaseConnector class
+
     @ensure_connected
-    def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> pd.DataFrame:
-        """Execute query and return results as DataFrame."""
+    def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> "DatabaseConnector":
+        """Execute query and return connector for chaining."""
         if not self._connection or not self.is_database_active:
             raise ConnectionError("Database connection not active")
 
@@ -245,15 +310,110 @@ class DatabaseConnector:
             with self._cursor() as cursor:
                 cursor.execute(query)
                 columns = [col[0] for col in cursor.description]
-                data = cursor.fetchall()
-                if data:
-                    df = pd.DataFrame(data, columns=columns)
-                    if index_col and index_col in df.columns:
-                        df.set_index(index_col, inplace=True)
-                    return df
-                return pd.DataFrame()
+                data = [list(row) for row in cursor.fetchall()]
+
+                df = pd.DataFrame(data, columns=columns) if data else pd.DataFrame()
+                if index_col and index_col in df.columns:
+                    df.set_index(index_col, inplace=True)
+
+                self._current_df = df
+                return self
+
         except Exception as e:
             raise DatabaseError(f"Query execution failed: {e}")
+
+    # Add to connector.py
+
+    def _check_format_dependencies(self, file_format: FileFormat) -> bool:
+        """Check if required dependencies are installed for the file format."""
+        try:
+            if file_format == FileFormat.XLSX or file_format == FileFormat.XLS:
+                import openpyxl
+
+                return True
+            elif file_format == FileFormat.PARQUET:
+                import pyarrow
+
+                return True
+            elif file_format == FileFormat.FEATHER:
+                import pyarrow
+
+                return True
+            elif file_format == FileFormat.ORC:
+                import pyarrow
+
+                return True
+            elif file_format == FileFormat.HDF:
+                import tables
+
+                return True
+            else:
+                # CSV, JSON are part of pandas core
+                return True
+        except ImportError:
+            return False
+
+    def save_to_file(
+        self, path: Union[str, Path], file_format: Optional[FileFormat] = None, **kwargs
+    ) -> "DatabaseConnector":
+        """Save current DataFrame using specified format with dependency checking."""
+        if not hasattr(self, "_current_df"):
+            return self
+
+        path = Path(path)
+        if file_format is None:
+            extension = path.suffix.lstrip(".")
+            file_format = FileFormat.from_extension(extension)
+            if file_format is None:
+                raise ValueError(f"Unsupported file extension: {extension}")
+
+        # Check dependencies
+        if not self._check_format_dependencies(file_format):
+            format_to_package = {
+                FileFormat.XLSX: "openpyxl",
+                FileFormat.XLS: "openpyxl",
+                FileFormat.PARQUET: "pyarrow",
+                FileFormat.FEATHER: "pyarrow",
+                FileFormat.ORC: "pyarrow",
+                FileFormat.HDF: "tables",
+            }
+            package = format_to_package.get(file_format, "unknown")
+            print(f"Warning: {file_format.name} format requires {package}. Skipping file: {path}")
+            return self
+
+        try:
+            # Ensure directory exists
+            path.parent.mkdir(parents=True, exist_ok=True)
+            file_format.write_dataframe(self._current_df, str(path), **kwargs)
+            print(f"Saved: {path}")
+        except Exception as e:
+            print(f"Warning: Failed to save {path}: {str(e)}")
+
+        return self
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Get the current DataFrame and clear it from memory."""
+        if not hasattr(self, "_current_df"):
+            return pd.DataFrame()
+
+        df = self._current_df
+        del self._current_df
+        return df
+
+    def display_dataframe_info(self, df: pd.DataFrame, title: str = "") -> None:
+        """Display detailed information about a DataFrame.
+
+        Args:
+            df: pandas DataFrame to analyze
+            title: Optional title for the info display
+        """
+        if title:
+            print(f"\n=== {title} ===")
+        print("DataFrame Info:")
+        df.info(memory_usage="deep")
+        print("\nDataFrame Shape:", df.shape)
+        print("\nDataFrame Preview:")
+        print(df)
 
     @ensure_connected
     def execute_query_to_prettytable(self, query: str, print_result: bool = False) -> Optional[PrettyTable]:

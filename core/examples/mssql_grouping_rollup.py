@@ -39,7 +39,7 @@ def main():
             print("\n2. rollup(hierarchically using scalar functions (inefficient):")
             conn.execute_query_to_prettytable(
                 """
-                    select 
+                    select
                     concat(s.ShipperCompanyName, ' : (', s.ShipperId, ')') as Shipper,
                     coalesce(Utils.DefineFiscalYear(o.OrderDate), ' ') as FiscalYear,
                     coalesce(Utils.DefineFiscalYearSemiAnnual(o.OrderDate), ' ') as SemiAnnual,
@@ -49,7 +49,7 @@ def main():
                     sum(od.TotalLineCost) as LineCostTotal,
                     sum(od.TotalDiscountedLineCost) as DiscountedLineCostTotal
                     from 
-                    Sales.OrderDetail as od
+                    Sales.OrderDetail as od  
                     inner join Sales.[Order] as o
                     on o.OrderId = od.OrderId
                     inner join Sales.Shipper as s

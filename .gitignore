@@ -157,6 +157,30 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+
+# Output directories
+output/
+shipping_analysis/
+
+# FileFormat outputs
+*.csv
+*.json
+*.html
+*.xml
+*.xls
+*.xlsx
+*.parquet
+*.feather
+*.h5
+*.orc
+*.pkl
+*.sql
+*.stata
+
+# Temp files that might be created
+~$*.xlsx  # Temp Excel files
+.~lock.*   # LibreOffice lock files
+*.tmp
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
