@@ -1,7 +1,10 @@
 """Utility decorators."""
 
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, Optional
 from functools import wraps
+import time
+import logging
+from datetime import datetime
 
 
 def preload_parameters(preload_method: Callable) -> Callable:
@@ -41,3 +44,103 @@ def ensure_connected(f: Callable) -> Callable:
         return f(self, *args, **kwargs)
 
     return wrapper
+
+
+def with_isolation_level(isolation_level: str):
+    """Decorator for setting transaction isolation level."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if not self._connection or not self.is_database_active:
+                raise ConnectionError("No active database connection")
+
+            original_isolation = self._current_isolation
+            try:
+                self.execute(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}")
+                self._current_isolation = isolation_level
+                result = func(self, *args, **kwargs)
+                return result
+            finally:
+                if original_isolation:
+                    self.execute(f"SET TRANSACTION ISOLATION LEVEL {original_isolation}")
+                self._current_isolation = original_isolation
+
+        return wrapper
+
+    return decorator
+
+
+def transactional(nested: bool = False):
+    """Decorator for transaction control."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        @ensure_connected
+        def wrapper(self, *args, **kwargs):
+            if not nested and self._transaction_active:
+                raise DatabaseError("Transaction already active and nested=False")
+
+            try:
+                self.begin_transaction()
+                result = func(self, *args, **kwargs)
+                self.commit()
+                return result
+            except Exception:
+                self.rollback()
+                raise
+
+        return wrapper
+
+    return decorator
+
+
+def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
+    """Decorator for operation retry logic."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            last_exception = None
+            for attempt in range(max_attempts):
+                try:
+                    return func(self, *args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    if attempt < max_attempts - 1:
+                        time.sleep(delay)
+                    continue
+            raise last_exception
+
+        return wrapper
+
+    return decorator
+
+
+def log_operation(operation_name: Optional[str] = None):
+    """Decorator for operation logging."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            op_name = operation_name or func.__name__
+            start_time = datetime.now()
+
+            try:
+                result = func(self, *args, **kwargs)
+                end_time = datetime.now()
+                duration = (end_time - start_time).total_seconds()
+
+                logging.info(f"Operation {op_name} completed successfully in {duration:.2f}s")
+                return result
+
+            except Exception as e:
+                end_time = datetime.now()
+                duration = (end_time - start_time).total_seconds()
+
+                logging.error(f"Operation {op_name} failed after {duration:.2f}s: {str(e)}")
+                raise
+
+        return wrapper
+
+    return decorator

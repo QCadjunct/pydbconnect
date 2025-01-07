@@ -55,9 +55,7 @@ class TargetDatabaseEngine(Enum):
         Gets value from engine configuration.
         """
 
-        return self.engine_config.get("CREATE_DATABASE_CONNECTION", False).get(
-            "REQUIRES_CREDENTIALS", False
-        )
+        return self.engine_config.get("CREATE_DATABASE_CONNECTION", False).get("REQUIRES_CREDENTIALS", False)
 
     @property
     def engine_config(self) -> dict:
@@ -225,10 +223,6 @@ class InvalidConnectionOptionError(DatabaseConnectionError):
 
         message = f"Connection option {target_atabase_connection_option.name} is not compatible with {target_database_engine.name}"
         super().__init__(message)
-
-
-from enum import Enum
-from typing import Dict
 
 
 class IsolationLevel(Enum):

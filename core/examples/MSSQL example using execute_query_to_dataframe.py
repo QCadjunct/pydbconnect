@@ -1,8 +1,13 @@
 """MSSQL Example using execute_query_to_dataframe with fluent design and advanced format options."""
 
 from pathlib import Path
-from core.connector import DatabaseConnector, FormatOptions
-from templates.constraints import TargetDatabaseEngine, TargetDatabaseConnectionStringOption, FileFormat
+from core.connector import DatabaseConnector
+from templates.constraints import (
+    ChangeDefaultUsernameAndPassword,
+    TargetDatabaseEngine,
+    TargetDatabaseConnectionStringOption,
+    FileFormat,
+)
 
 
 def main():
@@ -87,14 +92,14 @@ def main():
         print("\n=== Example 3: Advanced Format Options ===")
 
         # Define advanced format options
-        format_options = FormatOptions(
-            compression="gzip",
-            encoding="utf-8",
-            batch_size=1000,
-            csv_options={"sep": ";", "date_format": "%Y-%m-%d"},
-            excel_options={"sheet_name": "Shipping Analysis", "freeze_panes": (1, 0)},
-            parquet_options={"engine": "pyarrow", "compression": "snappy"},
-        )
+        format_options = {
+            "compression": "gzip",
+            "encoding": "utf-8",
+            "batch_size": 1000,
+            "csv_options": {"sep": ";", "date_format": "%Y-%m-%d"},
+            "excel_options": {"sheet_name": "Shipping Analysis", "freeze_panes": (1, 0)},
+            "parquet_options": {"engine": "pyarrow", "compression": "snappy"},
+        }
 
         # Apply advanced options with batching
         df3 = (

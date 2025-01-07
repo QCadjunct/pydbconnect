@@ -1,4 +1,6 @@
-"""Advanced decorator patterns for future implementation."""
+"""
+    Advanced decorator patterns for future implementation. 
+    Remove this file when connector.py is fully tested since it was incorporrated into the connector.py file."""
 
 from typing import Callable, Any, Optional
 from functools import wraps

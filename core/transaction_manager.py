@@ -1,5 +1,6 @@
-"""Transaction management for future implementation."""
+"""TODO: Future implementation - not currently used Transaction management for future implementation."""
 
+# remove entire file when testing on the connector is completed
 from typing import Optional
 from datetime import datetime
 from contextlib import contextmanager

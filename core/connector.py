@@ -1,7 +1,7 @@
 """Database Connector Implementation."""
 
 from typing import Dict, Any, Optional, Tuple, Union
-import os
+from dataclasses import dataclass
 from contextlib import contextmanager
 import importlib
 import pandas as pd
@@ -10,10 +10,8 @@ from pathlib import Path
 from getpass import getpass
 from dotenv import load_dotenv
 from prettytable import PrettyTable
-from dataclasses import dataclass
-
+import os
 from utils.decorators import preload_parameters, ensure_connected
-
 from templates.constraints import (
     ChangeDefaultUsernameAndPassword,
     TargetDatabaseEngine,
@@ -70,6 +68,10 @@ class FormatOptions:
 
 # Exception definitions must come first
 #
+# The fundamental approach of having exceptions defined before imports
+# remains the same in both versions. Therefore, we should keep
+# the original format as it's working and
+# maintains your established code style.
 
 
 class DatabaseError(Exception):
@@ -280,6 +282,25 @@ class DatabaseConnector:
         finally:
             cursor.close()
 
+    # @ensure_connected
+    # def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> pd.DataFrame:
+    #     """Execute query and return results as DataFrame."""
+    #     if not self._connection or not self.is_database_active:
+    #         raise ConnectionError("Database connection not active")
+
+    #     try:
+    #         with self._cursor() as cursor:
+    #             cursor.execute(query)
+    #             columns = [col[0] for col in cursor.description]
+    #             data = cursor.fetchall()
+    #             if data:
+    #                 df = pd.DataFrame(data, columns=columns)
+    #                 if index_col and index_col in df.columns:
+    #                     df.set_index(index_col, inplace=True)
+    #                 return df
+    #             return pd.DataFrame()
+    #     except Exception as e:
+    #         raise DatabaseError(f"Query execution failed: {e}")
     @ensure_connected
     def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> "DatabaseConnector":
         """Execute query and return connector for chaining."""
@@ -332,44 +353,6 @@ class DatabaseConnector:
                 return True
         except ImportError:
             return False
-
-    # def save_to_file(
-    #     self, path: Union[str, Path], file_format: Optional[FileFormat] = None, **kwargs
-    # ) -> "DatabaseConnector":
-    #     """Save current DataFrame using specified format with dependency checking."""
-    #     if not hasattr(self, "_current_df"):
-    #         return self
-
-    #     path = Path(path)
-    #     if file_format is None:
-    #         extension = path.suffix.lstrip(".")
-    #         file_format = FileFormat.from_extension(extension)
-    #         if file_format is None:
-    #             raise ValueError(f"Unsupported file extension: {extension}")
-
-    #     # Check dependencies
-    #     if not self._check_format_dependencies(file_format):
-    #         format_to_package = {
-    #             FileFormat.XLSX: "openpyxl",
-    #             FileFormat.XLS: "openpyxl",
-    #             FileFormat.PARQUET: "pyarrow",
-    #             FileFormat.FEATHER: "pyarrow",
-    #             FileFormat.ORC: "pyarrow",
-    #             FileFormat.HDF: "tables",
-    #         }
-    #         package = format_to_package.get(file_format, "unknown")
-    #         print(f"Warning: {file_format.name} format requires {package}. Skipping file: {path}")
-    #         return self
-
-    #     try:
-    #         # Ensure directory exists
-    #         path.parent.mkdir(parents=True, exist_ok=True)
-    #         file_format.write_dataframe(self._current_df, str(path), **kwargs)
-    #         print(f"Saved: {path}")
-    #     except Exception as e:
-    #         print(f"Warning: Failed to save {path}: {str(e)}")
-
-    #     return self
 
     def save_to_file(
         self,
@@ -485,25 +468,25 @@ class DatabaseConnector:
             except Exception as e:
                 raise DatabaseError(f"Query execution failed: {e}")
 
-    @ensure_connected
-    def execute_statement(self, sql: str) -> None:
-        """Execute a general SQL statement (DML or DDL).
+    # @ensure_connected
+    # def execute_statement(self, sql: str) -> None:
+    #     """Execute a general SQL statement (DML or DDL).
 
-        Args:
-            sql: SQL statement to execute
-        """
-        if not self._connection or not self.is_database_active:
-            raise ConnectionError("Database connection not active")
+    #     Args:
+    #         sql: SQL statement to execute
+    #     """
+    #     if not self._connection or not self.is_database_active:
+    #         raise ConnectionError("Database connection not active")
 
-        try:
-            with self._cursor() as cursor:
-                cursor.execute(sql)
-                if not getattr(self._connection, "closed", False):
-                    self._connection.commit()
-        except Exception as e:
-            if not getattr(self._connection, "closed", False):
-                self._connection.rollback()
-            raise DatabaseError(f"Statement execution failed: {e}")
+    #     try:
+    #         with self._cursor() as cursor:
+    #             cursor.execute(sql)
+    #             if not getattr(self._connection, "closed", False):
+    #                 self._connection.commit()
+    #     except Exception as e:
+    #         if not getattr(self._connection, "closed", False):
+    #             self._connection.rollback()
+    #         raise DatabaseError(f"Statement execution failed: {e}")
 
     @ensure_connected
     def execute(self, sql: str, params: Optional[Tuple[Any, ...]] = None) -> "DatabaseConnector":
@@ -564,10 +547,11 @@ class DatabaseConnector:
 
 
 if __name__ == "__main__":
+    import os
 
     print("\nWarning: This is the core connector module.")
     print("For examples, please run files in core/examples/ instead.")
-    print("\nDebug Info:")
+    print(f"\nDebug Info:")
     print(f"Current directory: {os.getcwd()}")
     print(f"Current file: {__file__}")
     print(f"Environment variables: {os.environ}")
