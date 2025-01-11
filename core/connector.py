@@ -457,14 +457,19 @@ class DatabaseConnector:
         print(df)
 
     @ensure_connected
-    def execute_query_to_prettytable(self, query: str, print_result: bool = False) -> Optional[PrettyTable]:
+    def execute_query_to_prettytable(
+        self, query: str, sql_parameters: Optional[tuple] = None, print_result: bool = False
+    ) -> Optional[PrettyTable]:
         """Execute query and return/print results as PrettyTable."""
         if not self._connection or not self.is_database_active:
             raise ConnectionError("Database connection not active")
 
         with self._cursor() as cursor:
             try:
-                cursor.execute(query)
+                if sql_parameters:
+                    cursor.execute(query, sql_parameters)
+                else:
+                    cursor.execute(query)
                 table = PrettyTable()
                 table.field_names = [col[0] for col in cursor.description]
                 table.add_rows(cursor.fetchall())
@@ -475,26 +480,6 @@ class DatabaseConnector:
                 return table
             except Exception as e:
                 raise DatabaseError(f"Query execution failed: {e}")
-
-    # @ensure_connected
-    # def execute_statement(self, sql: str) -> None:
-    #     """Execute a general SQL statement (DML or DDL).
-
-    #     Args:
-    #         sql: SQL statement to execute
-    #     """
-    #     if not self._connection or not self.is_database_active:
-    #         raise ConnectionError("Database connection not active")
-
-    #     try:
-    #         with self._cursor() as cursor:
-    #             cursor.execute(sql)
-    #             if not getattr(self._connection, "closed", False):
-    #                 self._connection.commit()
-    #     except Exception as e:
-    #         if not getattr(self._connection, "closed", False):
-    #             self._connection.rollback()
-    #         raise DatabaseError(f"Statement execution failed: {e}")
 
     @ensure_connected
     def execute(self, sql: str, params: Optional[Tuple[Any, ...]] = None) -> "DatabaseConnector":

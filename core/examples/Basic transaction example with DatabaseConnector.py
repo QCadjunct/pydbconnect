@@ -11,7 +11,7 @@ def demonstrate_basic_transaction():
 
     # Constants for the transaction
     PRODUCT_ID = 707
-    LOCATION_ID = 7  # Changed from 1 to 7
+    LOCATION_ID = 7
     ORDER_QTY = 5
 
     db = DatabaseConnector(
@@ -47,7 +47,8 @@ def demonstrate_basic_transaction():
         """
 
         print("\nVerifying product exists:")
-        db.execute_query_to_prettytable(product_check_query, (PRODUCT_ID, LOCATION_ID), print_result=True)
+        sql_parameters = (PRODUCT_ID, LOCATION_ID)
+        db.execute_query_to_prettytable(product_check_query, sql_parameters)
 
         # Explicitly begin transaction
         print("\nExplicitly beginning transaction...")
@@ -61,7 +62,8 @@ def demonstrate_basic_transaction():
             VALUES 
                 (?, ?, 0, SYSDATETIME(), DATEADD(day, 7, SYSDATETIME()), SYSDATETIME())
             """
-            db.execute(work_order_insert, (PRODUCT_ID, ORDER_QTY))
+            sql_parameters = (PRODUCT_ID, ORDER_QTY)
+            db.execute(work_order_insert, sql_parameters)
 
             # Get the ID using a separate query
             get_id_query = "SELECT IDENT_CURRENT('Production.WorkOrder') AS WorkOrderID"
@@ -79,7 +81,8 @@ def demonstrate_basic_transaction():
                 (?, ?, 1, ?, SYSDATETIME(), 
                  DATEADD(day, 7, SYSDATETIME()), SYSDATETIME(), 100.00)
             """
-            db.execute(routing_query, (work_order_id, PRODUCT_ID, LOCATION_ID))
+            sql_parameters = (work_order_id, PRODUCT_ID, LOCATION_ID)
+            db.execute(routing_query, sql_parameters)
             print(f"Created Work Order Routing for Order {work_order_id}")
 
             # 3. Get current inventory
@@ -93,7 +96,8 @@ def demonstrate_basic_transaction():
                 ON p.ProductID = pi.ProductID
             WHERE p.ProductID = ? AND pi.LocationID = ?
             """
-            db.execute_query_to_dataframe(get_inventory_query, (PRODUCT_ID, LOCATION_ID))
+            sql_parameters = (PRODUCT_ID, LOCATION_ID)
+            db.execute_query_to_dataframe(get_inventory_query, sql_parameters)
             df = db.to_dataframe()
 
             if len(df) == 0:
@@ -107,10 +111,12 @@ def demonstrate_basic_transaction():
             SET Quantity = Quantity - ?
             WHERE ProductID = ? AND LocationID = ?
             """
-            db.execute(update_inventory_query, (ORDER_QTY, PRODUCT_ID, LOCATION_ID))
+            sql_parameters = (ORDER_QTY, PRODUCT_ID, LOCATION_ID)
+            db.execute(update_inventory_query, sql_parameters)
 
             # 5. Get updated inventory
-            db.execute_query_to_dataframe(get_inventory_query, (PRODUCT_ID, LOCATION_ID))
+            sql_parameters = (PRODUCT_ID, LOCATION_ID)
+            db.execute_query_to_dataframe(get_inventory_query, sql_parameters)
             df = db.to_dataframe()
             new_quantity = int(df["CurrentStock"].iloc[0])
 
@@ -141,7 +147,8 @@ def demonstrate_basic_transaction():
             WHERE wo.WorkOrderID = ?
             """
             print("\nVerifying Changes:")
-            db.execute_query_to_prettytable(verification_query, (work_order_id,), print_result=True)
+            sql_parameters = (work_order_id,)
+            db.execute_query_to_prettytable(verification_query, sql_parameters)
 
             # Explicitly commit transaction
             print("\nExplicitly committing transaction...")
