@@ -424,5 +424,43 @@ class TransferMetrics:
         )
 
 
+class TransactionType(Enum):
+    """Transaction Types for database transaction management."""
+
+    BEGIN = "BEGIN"
+    COMMIT = "COMMIT"
+    ROLLBACK = "ROLLBACK"
+
+    @property
+    def sql_statement(self) -> str:
+        """Get the SQL statement for this transaction type."""
+        if self == TransactionType.BEGIN:
+            return "BEGIN TRANSACTION"
+        return self.value
+
+    @property
+    def requires_isolation_level(self) -> bool:
+        """Check if this transaction type requires isolation level."""
+        return self == TransactionType.BEGIN
+
+    @property
+    def can_nest(self) -> bool:
+        """Check if this transaction type supports nesting."""
+        return self == TransactionType.BEGIN
+
+    @classmethod
+    def get_default_type(cls) -> "TransactionType":
+        """Get default transaction type."""
+        return cls.BEGIN
+
+    @classmethod
+    def from_string(cls, value: str) -> "TransactionType":
+        """Convert string to transaction type enum."""
+        try:
+            return cls(value.upper())
+        except ValueError:
+            raise ValueError(f"Invalid transaction type: {value}")
+
+
 if __name__ == "__main__":
     test_enums()

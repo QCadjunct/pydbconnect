@@ -16,7 +16,8 @@ def demonstrate_basic_transaction():
         with db.set_credentials_based_on_connect_option().finalization_of_connection_parameters(
             DRIVER="{ODBC Driver 17 for SQL Server}",
             SERVER="localhost",
-            DATABASE_NAME="TestDB",
+            PORT_NUMBER=13001,
+            DATABASE_NAME="AdventureWorks2019",
         ).connect_to_database():
 
             # Using transaction scope

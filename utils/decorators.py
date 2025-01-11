@@ -1,10 +1,11 @@
 """Utility decorators."""
 
-from typing import Dict, Any, Callable, Optional
+from typing import Any, Callable, Optional
 from functools import wraps
 import time
 import logging
 from datetime import datetime
+from templates.constraints import IsolationLevel  # Ensure this import is correct
 
 
 def preload_parameters(preload_method: Callable) -> Callable:
@@ -39,32 +40,37 @@ def ensure_connected(f: Callable) -> Callable:
 
     @wraps(f)
     def wrapper(self, *args, **kwargs):
-        if not hasattr(self, "_connection") or self._connection is None:
-            raise RuntimeError("Database connection not established")  # Generic error
-        return f(self, *args, **kwargs)
+        # Check for direct connection
+        if hasattr(self, "_connection") and self._connection is not None:
+            return f(self, *args, **kwargs)
+        # Check for connector
+        if hasattr(self, "connector") and self.connector.is_database_active:
+            return f(self, *args, **kwargs)
+        raise RuntimeError("Database connection not established")  # Generic error
 
     return wrapper
 
 
-def with_isolation_level(isolation_level: str):
-    """Decorator for setting transaction isolation level."""
+def with_isolation_level(isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED):
+    """Decorator for setting isolation level with process awareness."""
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if not self._connection or not self.is_database_active:
-                raise ConnectionError("No active database connection")
+            import os
 
-            original_isolation = self._current_isolation
+            pid = os.getpid()
+            session_id = getattr(self._connection, "spid", None)  # For SQL Server
+
+            original_level = self._current_isolation
             try:
-                self.execute(f"SET TRANSACTION ISOLATION LEVEL {isolation_level}")
+                if session_id:
+                    # Log the session info
+                    logging.info(f"Setting isolation level for PID {pid}, Session {session_id}")
                 self._current_isolation = isolation_level
-                result = func(self, *args, **kwargs)
-                return result
+                return func(self, *args, **kwargs)
             finally:
-                if original_isolation:
-                    self.execute(f"SET TRANSACTION ISOLATION LEVEL {original_isolation}")
-                self._current_isolation = original_isolation
+                self._current_isolation = original_level
 
         return wrapper
 
@@ -101,7 +107,7 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            last_exception = None
+            last_exception: Optional[BaseException] = None
             for attempt in range(max_attempts):
                 try:
                     return func(self, *args, **kwargs)
@@ -110,7 +116,10 @@ def retry_on_failure(max_attempts: int = 3, delay: float = 1.0):
                     if attempt < max_attempts - 1:
                         time.sleep(delay)
                     continue
-            raise last_exception
+            if last_exception is not None:
+                raise last_exception
+            else:
+                raise RuntimeError("Operation failed without raising an exception")
 
         return wrapper
 

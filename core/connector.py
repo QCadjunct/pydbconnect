@@ -20,6 +20,8 @@ from templates.constraints import (
 )
 import templates.engines as templates
 
+from .transaction_manager import TransactionManager  # Add this import
+
 
 @dataclass
 class FormatOptions:
@@ -122,10 +124,8 @@ class DatabaseConnector:
         # Load environment
         self._load_environment()
 
-        # Track state
-        self.is_database_active = False
-        self.database_attached_at = None
-        self.database_detached_at = None
+        # Add transaction manager
+        self.transaction_manager = TransactionManager(self)
 
     def _load_engine_config(self, templates) -> Dict[str, Any]:
         """Load engine-specific configuration."""
@@ -283,8 +283,8 @@ class DatabaseConnector:
             cursor.close()
 
     # @ensure_connected
-    # def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> pd.DataFrame:
-    #     """Execute query and return results as DataFrame."""
+    # def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> "DatabaseConnector":
+    #     """Execute query and return connector for chaining."""
     #     if not self._connection or not self.is_database_active:
     #         raise ConnectionError("Database connection not active")
 
@@ -292,24 +292,32 @@ class DatabaseConnector:
     #         with self._cursor() as cursor:
     #             cursor.execute(query)
     #             columns = [col[0] for col in cursor.description]
-    #             data = cursor.fetchall()
-    #             if data:
-    #                 df = pd.DataFrame(data, columns=columns)
-    #                 if index_col and index_col in df.columns:
-    #                     df.set_index(index_col, inplace=True)
-    #                 return df
-    #             return pd.DataFrame()
+    #             data = [list(row) for row in cursor.fetchall()]
+
+    #             df = pd.DataFrame(data, columns=columns) if data else pd.DataFrame()
+    #             if index_col and index_col in df.columns:
+    #                 df.set_index(index_col, inplace=True)
+
+    #             self._current_df = df
+    #             return self
+
     #     except Exception as e:
     #         raise DatabaseError(f"Query execution failed: {e}")
+
     @ensure_connected
-    def execute_query_to_dataframe(self, query: str, index_col: Optional[str] = None) -> "DatabaseConnector":
+    def execute_query_to_dataframe(
+        self, query: str, params: Optional[Tuple] = None, index_col: Optional[str] = None
+    ) -> "DatabaseConnector":
         """Execute query and return connector for chaining."""
         if not self._connection or not self.is_database_active:
             raise ConnectionError("Database connection not active")
 
         try:
             with self._cursor() as cursor:
-                cursor.execute(query)
+                if params:
+                    cursor.execute(query, params)
+                else:
+                    cursor.execute(query)
                 columns = [col[0] for col in cursor.description]
                 data = [list(row) for row in cursor.fetchall()]
 
@@ -547,11 +555,10 @@ class DatabaseConnector:
 
 
 if __name__ == "__main__":
-    import os
 
     print("\nWarning: This is the core connector module.")
     print("For examples, please run files in core/examples/ instead.")
-    print(f"\nDebug Info:")
-    print(f"Current directory: {os.getcwd()}")
-    print(f"Current file: {__file__}")
-    print(f"Environment variables: {os.environ}")
+    print("\nDebug Info:")
+    print(f"\nCurrent directory: {os.getcwd()}")
+    print(f"\nCurrent file: {__file__}")
+    print(f"\nEnvironment variables: {os.environ}")

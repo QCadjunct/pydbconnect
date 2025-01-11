@@ -1,49 +1,93 @@
-"""TODO: Future implementation - not currently used Transaction management for future implementation."""
+"""Transaction Management Module."""
 
-# remove entire file when testing on the connector is completed
-from typing import Optional
-from datetime import datetime
 from contextlib import contextmanager
+from utils.decorators import ensure_connected, log_operation
+from templates.constraints import IsolationLevel, TransactionType
 
 
 class TransactionManager:
-    """Future implementation of transaction management."""
-
-    def __init__(self):
-        """Initialize transaction state."""
+    def __init__(self, connector):
+        """Initialize TransactionManager with a database connector."""
+        self.connector = connector
         self._transaction_level = 0
         self._savepoints = []
         self._transaction_active = False
-        self._current_isolation = None
-        self._connection = None
+        self._current_isolation = IsolationLevel.READ_COMMITTED
 
-    def begin_transaction(self, isolation_level: Optional[str] = None) -> None:
+    def _begin(self, isolation_level: IsolationLevel) -> None:
+        """Handle beginning a transaction."""
+        if self._transaction_active:
+            self._transaction_level += 1
+            return
+
+        self.connector.execute(isolation_level.get_sql_statement())
+        self.connector.execute(TransactionType.BEGIN.sql_statement)
+        self._current_isolation = isolation_level
+        self._transaction_active = True
+        self._transaction_level = 1
+
+    def _commit(self) -> None:
+        """Handle committing a transaction."""
+        if not self._transaction_active:
+            return
+
+        self._transaction_level -= 1
+        if self._transaction_level == 0:
+            self.connector.execute(TransactionType.COMMIT.sql_statement)
+            self._reset_transaction_state()
+
+    def _rollback(self) -> None:
+        """Handle rolling back a transaction."""
+        if not self._transaction_active:
+            return
+
+        try:
+            self.connector.execute(TransactionType.ROLLBACK.sql_statement)
+        finally:
+            self._reset_transaction_state()
+
+    def _manage_transaction(
+        self, transaction_type: TransactionType, isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED
+    ) -> None:
+        """Route transaction operation to appropriate handler."""
+        transaction_handlers = {
+            TransactionType.BEGIN: lambda: self._begin(isolation_level),
+            TransactionType.COMMIT: self._commit,
+            TransactionType.ROLLBACK: self._rollback,
+        }
+
+        if not transaction_type.can_nest and self._transaction_level > 0:
+            return
+
+        transaction_handlers[transaction_type]()
+
+    def _reset_transaction_state(self) -> None:
+        """Reset transaction state to default values."""
+        self._transaction_active = False
+        self._transaction_level = 0
+        self._current_isolation = IsolationLevel.READ_COMMITTED
+        self._savepoints = []
+
+    @ensure_connected
+    @log_operation("transaction_begin")
+    def begin_transaction(self, isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED) -> None:
         """Begin transaction with specified isolation level."""
-        pass
+        self._manage_transaction(TransactionType.BEGIN, isolation_level)
 
+    @ensure_connected
+    @log_operation("transaction_commit")
     def commit(self) -> None:
-        """Commit current transaction."""
-        pass
+        """Commit transaction."""
+        self._manage_transaction(TransactionType.COMMIT)
 
-    def rollback(self, savepoint_name: Optional[str] = None) -> None:
-        """Rollback to savepoint or full transaction."""
-        pass
-
-    def create_savepoint(self, name: str) -> None:
-        """Create a savepoint."""
-        pass
-
-    def rollback_to_savepoint(self, name: str) -> None:
-        """Rollback to specific savepoint."""
-        pass
-
-    def get_current_isolation_level(self) -> Optional[str]:
-        """Get current isolation level."""
-        pass
+    @log_operation("transaction_rollback")
+    def rollback(self) -> None:
+        """Rollback transaction."""
+        self._manage_transaction(TransactionType.ROLLBACK)
 
     @contextmanager
-    def transaction_scope(self, isolation_level: Optional[str] = None):
-        """Context manager for transaction scope."""
+    def transaction_scope(self, isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED):
+        """Transaction context manager."""
         try:
             self.begin_transaction(isolation_level)
             yield self
