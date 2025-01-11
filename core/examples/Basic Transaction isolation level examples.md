@@ -1,253 +1,272 @@
-# 🔄 Transaction Management Implementation Guide
+# 📚 Transaction Isolation Levels Documentation
 
-## Table of Contents 
-- [Overview](#overview)
-- [Code Changes](#changes)
-  - [Decorator Updates](#decorator)
-  - [Transaction Manager Updates](#transaction-manager)
-  - [Final Implementation](#implementation)
-- [Best Practices](#best-practices)
-- [Testing](#testing)
+## Table of Contents 📑
+1. [Introduction](#introduction)
+2. [Decorators Implementation](#decorators)
+3. [Transaction Manager & Constraints](#constraints)
+4. [Basic Examples](#examples)
+5. [Code Explanations](#explanations)
 
-## Overview <a name="overview"></a> [↑](#table-of-contents)
+[⬆️ Back to TOC](#table-of-contents-)
 
-This guide documents the implementation of transaction management in the database connector framework. The example demonstrates proper transaction handling with SERIALIZABLE isolation level, parameter handling, and type conversions while maintaining a fluent interface design pattern.
+## Introduction {#introduction}
 
-## Code Changes <a name="changes"></a> [↑](#table-of-contents)
+This document provides a comprehensive overview of transaction isolation levels implementation in Python, including decorators, constraints, and practical examples. The code demonstrates how to manage database transactions with different isolation levels while ensuring proper error handling and connection management.
 
-### Decorator Updates <a name="decorator"></a> [↑](#table-of-contents)
+[⬆️ Back to TOC](#table-of-contents-)
+
+## Decorators Implementation {#decorators}
 
 ```python
-def ensure_connected(f: Callable) -> Callable:
-    """
-    Decorator to ensure database connection exists before executing a method.
-    """
-    @wraps(f)
-    def wrapper(self, *args, **kwargs):
-        # Check for direct connection
-        if hasattr(self, "_connection") and self._connection is not None:
-            return f(self, *args, **kwargs)
-        # Check for connector
-        if hasattr(self, "connector") and self.connector.is_database_active:
-            return f(self, *args, **kwargs)
-        raise RuntimeError("Database connection not established")  # Generic error
-    return wrapper
+def with_isolation_level(isolation_level: IsolationLevel = IsolationLevel.READ_COMMITTED):
+    """Decorator for setting isolation level with process awareness."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            import os
+
+            pid = os.getpid()
+            session_id = getattr(self._connection, "spid", None)  # For SQL Server
+
+            original_level = self._current_isolation
+            try:
+                if session_id:
+                    # Log the session info
+                    logging.info(f"Setting isolation level for PID {pid}, Session {session_id}")
+                self._current_isolation = isolation_level
+                return func(self, *args, **kwargs)
+            finally:
+                self._current_isolation = original_level
+
+        return wrapper
+
+    return decorator
+
+def transactional(nested: bool = False):
+    """Decorator for transaction control."""
+
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        @ensure_connected
+        def wrapper(self, *args, **kwargs):
+            if not nested and self._transaction_active:
+                raise DatabaseError("Transaction already active and nested=False")
+
+            try:
+                self.begin_transaction()
+                result = func(self, *args, **kwargs)
+                self.commit()
+                return result
+            except Exception:
+                self.rollback()
+                raise
+
+        return wrapper
+
+    return decorator
 ```
 
-### Transaction Manager Updates <a name="transaction-manager"></a> [↑](#table-of-contents)
+[⬆️ Back to TOC](#table-of-contents-)
 
-In `constraints.py`:
+## Transaction Manager & Constraints {#constraints}
+
 ```python
-class TransactionType(Enum):
-    """Transaction Types for database transaction management."""
-    BEGIN = "BEGIN"
-    COMMIT = "COMMIT"
-    ROLLBACK = "ROLLBACK"
+class IsolationLevel(Enum):
+    """SQL Standard Isolation Levels with properties."""
 
-    @property
-    def sql_statement(self) -> str:
-        """Get the SQL statement for this transaction type."""
-        if self == TransactionType.BEGIN:
-            return "BEGIN TRANSACTION"
-        return self.value
-
-    @property
-    def requires_isolation_level(self) -> bool:
-        """Check if this transaction type requires isolation level."""
-        return self == TransactionType.BEGIN
-
-    @property
-    def can_nest(self) -> bool:
-        """Check if this transaction type supports nesting."""
-        return self == TransactionType.BEGIN
+    UNSPECIFIED = "UNSPECIFIED"
+    READ_UNCOMMITTED = "READ UNCOMMITTED"
+    READ_COMMITTED = "READ COMMITTED"
+    REPEATABLE_READ = "REPEATABLE READ"
+    SERIALIZABLE = "SERIALIZABLE"
+    SNAPSHOT = "SNAPSHOT"
+    READ_COMMITTED_SNAPSHOT = "READ COMMITTED SNAPSHOT"
+    UNKNOWN = "UNKNOWN"
 
     @classmethod
-    def get_default_type(cls) -> "TransactionType":
-        """Get default transaction type."""
-        return cls.BEGIN
-
-    @classmethod
-    def from_string(cls, value: str) -> "TransactionType":
-        """Convert string to transaction type enum."""
+    def from_string(cls, value: str) -> "IsolationLevel":
+        """Convert string to isolation level enum."""
         try:
             return cls(value.upper())
         except ValueError:
-            raise ValueError(f"Invalid transaction type: {value}")
+            return cls.UNKNOWN
+
+    @property
+    def dirty_reads(self) -> bool:
+        return self == IsolationLevel.READ_UNCOMMITTED
+
+    @property
+    def non_repeatable_reads(self) -> bool:
+        return self in [IsolationLevel.READ_UNCOMMITTED, IsolationLevel.READ_COMMITTED]
+
+    @property
+    def phantom_reads(self) -> bool:
+        return self in [
+            IsolationLevel.READ_UNCOMMITTED,
+            IsolationLevel.READ_COMMITTED,
+            IsolationLevel.REPEATABLE_READ,
+        ]
+
+    @property
+    def is_snapshot_based(self) -> bool:
+        return self in [IsolationLevel.SNAPSHOT, IsolationLevel.READ_COMMITTED_SNAPSHOT]
+
+    @classmethod
+    def get_default_level(cls) -> "IsolationLevel":
+        """Get default isolation level."""
+        return cls.READ_COMMITTED
+
+    def get_sql_statement(self) -> str:
+        """Get SQL to set this isolation level."""
+        return f"SET TRANSACTION ISOLATION LEVEL {self.value}"
 ```
 
-### Final Implementation <a name="implementation"></a> [↑](#table-of-contents)
+[⬆️ Back to TOC](#table-of-contents-)
+
+## Basic Examples {#examples}
 
 ```python
-# examples/transactions/adventure_works_transaction.py
-"""Enhanced transaction example with DatabaseConnector using AdventureWorks2019."""
+# Basic Transaction Isolation Level Examples
 
-from core.connector import DatabaseConnector
-from templates.constraints import (
-    TargetDatabaseEngine,
-    TargetDatabaseConnectionStringOption,
-    IsolationLevel,
-    TransactionType
-)
-from datetime import datetime
+from decorators import with_isolation_level, transactional
+from constraints import IsolationLevel
+from connector import DatabaseConnector
+import logging
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
-def demonstrate_order_processing():
-    """Show transaction usage with order processing and inventory update."""
-    print("\n=== Starting Order Processing Transaction Demo ===")
+class TransactionExample:
+    def __init__(self, connector: DatabaseConnector):
+        self.connector = connector
+        self._current_isolation = IsolationLevel.READ_COMMITTED
 
-    db = DatabaseConnector(
-        target_database_engine=TargetDatabaseEngine.MSSQL,
-        target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd,
-    )
+    @with_isolation_level(IsolationLevel.READ_COMMITTED)
+    @transactional()
+    def safe_update_balance(self, account_id: int, amount: float) -> None:
+        """Update account balance with READ COMMITTED isolation."""
+        query = """
+        UPDATE accounts 
+        SET balance = balance + ?
+        WHERE account_id = ?
+        """
+        self.connector.execute(query, (amount, account_id))
 
-    try:
-        # Connect to database
-        db = (
-            db.set_credentials_based_on_connect_option()
-            .finalization_of_connection_parameters(
-                DRIVER="{ODBC Driver 17 for SQL Server}",
-                SERVER="127.0.0.1",
-                PORT_NUMBER=13001,
-                DATABASE_NAME="AdventureWorks2019",
-            )
-            .connect_to_database()
-        )
+    @with_isolation_level(IsolationLevel.SERIALIZABLE)
+    @transactional()
+    def transfer_funds(self, from_account: int, to_account: int, amount: float) -> None:
+        """Transfer funds between accounts with SERIALIZABLE isolation."""
+        # Deduct from source account
+        debit_query = """
+        UPDATE accounts 
+        SET balance = balance - ?
+        WHERE account_id = ? AND balance >= ?
+        """
+        self.connector.execute(debit_query, (amount, from_account, amount))
 
-        print("Connected to AdventureWorks2019 database")
+        # Add to destination account
+        credit_query = """
+        UPDATE accounts 
+        SET balance = balance + ?
+        WHERE account_id = ?
+        """
+        self.connector.execute(credit_query, (amount, to_account))
 
-        # Transaction scope with SERIALIZABLE isolation
-        with db.transaction_manager.transaction_scope(IsolationLevel.SERIALIZABLE):
-            print("\nStarting transaction with SERIALIZABLE isolation...")
+    @with_isolation_level(IsolationLevel.REPEATABLE_READ)
+    @transactional()
+    def get_account_summary(self, account_id: int) -> dict:
+        """Get account summary with REPEATABLE READ isolation."""
+        query = """
+        SELECT account_id, balance, last_updated
+        FROM accounts
+        WHERE account_id = ?
+        """
+        result = self.connector.execute_query_to_dataframe(query, (account_id,))
+        return result.to_dict('records')[0] if not result.empty else None
 
-            # 1. Verify product availability
-            product_id = 776  # Mountain Bike
-            location_id = 7   # Main warehouse
-
-            inventory_query = """
-            SELECT Quantity 
-            FROM Production.ProductInventory 
-            WHERE ProductID = ? AND LocationID = ?
-            """
-
-            db.execute_query_to_dataframe(inventory_query, (product_id, location_id))
-            initial_qty = db.to_dataframe()["Quantity"].iloc[0]
-            print(f"\nCurrent inventory for ProductID {product_id}: {initial_qty} units")
-
-            if initial_qty < 1:
-                raise Exception("Insufficient inventory")
-
-            # 2. Create Sales Order Header
-            current_date = datetime.now()
-            customer_id = 29825
-
-            header_query = """
-            INSERT INTO Sales.SalesOrderHeader 
-                (RevisionNumber, OrderDate, DueDate, Status, OnlineOrderFlag,
-                CustomerID, BillToAddressID, ShipToAddressID, ShipMethodID,
-                SubTotal, TaxAmt, Freight)
-            OUTPUT 
-                INSERTED.SalesOrderID AS SalesOrderID
-            VALUES 
-                (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """
-
-            header_params = (
-                0,             # RevisionNumber
-                current_date,  # OrderDate
-                current_date,  # DueDate
-                1,            # Status (In Process)
-                1,            # OnlineOrderFlag
-                customer_id,  # CustomerID
-                4,            # BillToAddressID
-                4,            # ShipToAddressID
-                1,            # ShipMethodID
-                1000.00,      # SubTotal
-                80.00,        # TaxAmt
-                12.00,        # Freight
-            )
-
-            db.execute_query_to_dataframe(header_query, header_params)
-            sales_order_id = int(db.to_dataframe()["SalesOrderID"].iloc[0])
-
-            print(f"\nCreated Sales Order Header ID: {sales_order_id}")
-
-            # 3. Create Sales Order Detail
-            detail_query = """
-            INSERT INTO Sales.SalesOrderDetail 
-                (SalesOrderID, OrderQty, ProductID, SpecialOfferID,
-                UnitPrice, UnitPriceDiscount)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """
-
-            detail_params = (
-                int(sales_order_id),  # SalesOrderID
-                1,                    # OrderQty
-                int(product_id),      # ProductID
-                1,                    # SpecialOfferID
-                1000.00,              # UnitPrice
-                0.00,                 # UnitPriceDiscount
-            )
-
-            db.execute(detail_query, detail_params)
-            print(f"Created Sales Order Detail for order {sales_order_id}")
-
-            # 4. Update Inventory
-            update_inventory_query = """
-            UPDATE Production.ProductInventory
-            SET Quantity = Quantity - 1
-            WHERE ProductID = ? AND LocationID = ?
-            """
-
-            db.execute(update_inventory_query, (product_id, location_id))
-            print(f"\nUpdated inventory for ProductID {product_id}")
-
-            # Verify final inventory
-            db.execute_query_to_dataframe(inventory_query, (product_id, location_id))
-            final_qty = db.to_dataframe()["Quantity"].iloc[0]
-            print(f"New inventory quantity: {final_qty} units")
-
-            print("\nTransaction completed successfully!")
-
-    except Exception as e:
-        print(f"\nError occurred: {str(e)}")
-        print("Transaction rolled back")
-        raise
-    finally:
-        db.close()
-        print("\n=== Transaction Demo Completed ===")
-
-
+# Usage example
 if __name__ == "__main__":
-    demonstrate_order_processing()
+    # Initialize database connector
+    connector = DatabaseConnector(
+        target_database_engine=TargetDatabaseEngine.POSTGRESQL,
+        target_database_engine_connect_option=TargetDatabaseConnectionStringOption.DefaultFormatAndDefaultUserPwd
+    )
+    
+    # Create transaction example instance
+    tx_example = TransactionExample(connector)
+    
+    try:
+        # Perform safe balance update
+        tx_example.safe_update_balance(1001, 500.00)
+        
+        # Transfer funds between accounts
+        tx_example.transfer_funds(1001, 1002, 200.00)
+        
+        # Get account summary
+        summary = tx_example.get_account_summary(1001)
+        print(f"Account Summary: {summary}")
+        
+    except Exception as e:
+        logging.error(f"Transaction failed: {str(e)}")
+    finally:
+        connector.close()
 ```
 
-## Best Practices <a name="best-practices"></a> [↑](#table-of-contents)
+[⬆️ Back to TOC](#table-of-contents-)
 
-1. 🔒 **Transaction Isolation**
-   - Use appropriate isolation levels for your use case
-   - SERIALIZABLE provides strongest isolation but may impact concurrency
-   - Consider READ COMMITTED for better performance when full isolation not needed
+## Code Explanations {#explanations}
 
-2. 📊 **Parameter Handling**
-   - Always use parameterized queries to prevent SQL injection
-   - Convert numpy types to Python native types for SQL parameters
-   - Use proper type hints and documentation
+### 1. Decorators
 
-3. 🔄 **Transaction Management**
-   - Use context managers for automatic transaction handling
-   - Implement proper rollback on exceptions
-   - Verify transaction state before and after operations
+The implementation includes two key decorators:
 
-4. 🧪 **Error Handling**
-   - Implement comprehensive error handling
-   - Provide clear error messages
-   - Ensure proper cleanup on errors
+- `with_isolation_level`: Sets the transaction isolation level for a specific operation
+  - Takes an IsolationLevel enum value as parameter
+  - Preserves the original isolation level using try/finally
+  - Logs session information for debugging
+  - Process-aware with PID tracking
 
-## Testing <a name="testing"></a> [↑](#table-of-contents)
+- `transactional`: Manages transaction boundaries
+  - Supports nested transactions through the `nested` parameter
+  - Ensures database connection exists through `@ensure_connected`
+  - Handles commit/rollback automatically
+  - Maintains proper exception propagation
 
-1. Run the example with different isolation levels
-2. Test error conditions and rollback scenarios
-3. Verify proper cleanup of resources
-4. Test concurrent transactions for race conditions
+### 2. Isolation Levels
 
-[↑ Back to Top](#table-of-contents)
+The `IsolationLevel` enum defines standard SQL isolation levels with additional properties:
+
+- Tracks dirty reads, non-repeatable reads, and phantom reads
+- Supports snapshot isolation modes
+- Provides SQL statement generation
+- Includes string conversion and default level selection
+
+### 3. Example Implementation
+
+The example code demonstrates three common transaction scenarios:
+
+1. Safe Balance Updates
+   - Uses READ_COMMITTED isolation
+   - Single table update with basic concurrency control
+
+2. Fund Transfers
+   - Uses SERIALIZABLE isolation for maximum consistency
+   - Handles multi-table updates atomically
+   - Includes balance validation
+
+3. Account Summaries
+   - Uses REPEATABLE_READ isolation
+   - Ensures consistent reads during report generation
+   - Returns formatted dictionary results
+
+### Key Features
+
+- Process and session awareness
+- Automatic connection management
+- Proper error handling and logging
+- Support for different isolation levels
+- Clean API design with decorators
+- Type hints for better IDE support
+
+[⬆️ Back to TOC](#table-of-contents-)
