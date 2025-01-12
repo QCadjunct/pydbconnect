@@ -95,3 +95,46 @@ class TransactionManager:
         except Exception:
             self.rollback()
             raise
+
+    @ensure_connected
+    @log_operation("create_savepoint")
+    def create_savepoint(self, savepoint_name: str) -> None:
+        """Create a named savepoint in the current transaction.
+
+        Args:
+            savepoint_name: Name to give the savepoint
+
+        Raises:
+            RuntimeError: If no transaction is active
+        """
+        if not self._transaction_active:
+            raise RuntimeError("No active transaction")
+
+        savepoint_query = f"SAVE TRANSACTION {savepoint_name}"
+        self.connector.execute(savepoint_query)
+        self._savepoints.append(savepoint_name)
+
+    @ensure_connected
+    @log_operation("rollback_to_savepoint")
+    def rollback_to_savepoint(self, savepoint_name: str) -> None:
+        """Rollback to a specific savepoint in the current transaction.
+
+        Args:
+            savepoint_name: Name of the savepoint to roll back to
+
+        Raises:
+            RuntimeError: If no transaction is active
+            ValueError: If the specified savepoint doesn't exist
+        """
+        if not self._transaction_active:
+            raise RuntimeError("No active transaction")
+
+        if savepoint_name not in self._savepoints:
+            raise ValueError(f"Savepoint {savepoint_name} does not exist")
+
+        rollback_query = f"ROLLBACK TRANSACTION {savepoint_name}"
+        self.connector.execute(rollback_query)
+
+        # Remove all savepoints after the one we rolled back to
+        idx = self._savepoints.index(savepoint_name)
+        self._savepoints = self._savepoints[: idx + 1]
