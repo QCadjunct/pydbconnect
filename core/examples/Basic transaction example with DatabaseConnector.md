@@ -21,6 +21,7 @@ This documentation covers the implementation of database transaction management 
 ## Implementation Components
 
 ### Decorators
+
 ```python
 """Utility decorators."""
 
@@ -161,6 +162,7 @@ class TransactionType(Enum):
 ```
 
 ### Basic Transaction Example
+
 ```python
 def demonstrate_basic_transaction():
     """Demonstrate basic transaction operations with explicit transaction control."""
