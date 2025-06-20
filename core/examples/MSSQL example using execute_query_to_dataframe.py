@@ -22,7 +22,7 @@ def main():
         connector.finalization_of_connection_parameters(
             DRIVER="{ODBC Driver 17 for SQL Server}",
             SERVER="127.0.0.1",
-            PORT_NUMBER=15001,
+            PORT_NUMBER=13001,
             DATABASE_NAME="Fall2024LastTest",
         )
 
